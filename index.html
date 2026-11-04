@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="장뇌 보트 영상에서 속도를 구하고 표준곡선으로 세제(LAS) 농도를 추정하는 브라우저 전용 분석 도구" />
+    <title>장뇌 보트 분석기</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231B2A5C'/%3E%3Cpath d='M6 19h20l-4 5H10z' fill='white'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap top-inner">
+        <div>
+          <h1>장뇌 보트 분석기</h1>
+          <p class="sub">
+            장뇌(C<sub>10</sub>H<sub>16</sub>O) 보트의 속도로 세제(LAS, C<sub>n</sub>H<sub>2n+1</sub>C<sub>6</sub>H<sub>4</sub>SO<sub>3</sub><sup>−</sup>Na<sup>+</sup>) 농도를 추정해요.
+            영상은 이 컴퓨터 밖으로 나가지 않아요.
+          </p>
+        </div>
+        <button id="btnDemo" class="btn btn-outline">데모 불러오기</button>
+      </div>
+      <nav class="wrap steps" aria-label="단계">
+        <button class="step-tab" data-step="1"><span class="num">1</span><span class="lbl">영상</span></button>
+        <button class="step-tab" data-step="2"><span class="num">2</span><span class="lbl">축척</span></button>
+        <button class="step-tab" data-step="3"><span class="num">3</span><span class="lbl">추적</span></button>
+        <button class="step-tab" data-step="4"><span class="num">4</span><span class="lbl">속도·농도</span></button>
+      </nav>
+    </header>
+
+    <main class="wrap">
+      <!-- ───────────── 1단계 ───────────── -->
+      <section id="step1" class="step" data-step="1">
+        <h2>1단계 · 영상 불러오기</h2>
+        <ol class="guide">
+          <li>아래 버튼을 눌러 촬영한 영상(mp4, mov)을 고르세요.</li>
+          <li>◀ ▶ 버튼이나 키보드 좌우 방향키로 한 프레임씩 넘겨 볼 수 있어요.</li>
+          <li>초당 프레임 수(fps)가 맞는지 확인하고 <b>다음 단계</b>를 누르세요.</li>
+        </ol>
+        <label class="btn btn-primary file-btn">
+          영상 파일 고르기
+          <input id="fileInput" type="file" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v,video/*" />
+        </label>
+        <p id="fileName" class="muted"></p>
+        <div id="msg1" class="msg" role="alert" hidden></div>
+
+        <div id="player1" class="panel" hidden>
+          <div class="canvas-box"><canvas id="view1"></canvas></div>
+          <div class="frame-bar">
+            <button id="prev1" class="btn btn-icon" aria-label="이전 프레임">◀</button>
+            <button id="play1" class="btn btn-icon" aria-label="재생">재생</button>
+            <button id="next1" class="btn btn-icon" aria-label="다음 프레임">▶</button>
+            <input id="seek1" type="range" min="0" max="0" value="0" aria-label="프레임 위치" />
+          </div>
+          <p id="frameInfo1" class="mono"></p>
+          <div class="field-row">
+            <label for="fpsInput">초당 프레임 수 (fps)</label>
+            <input id="fpsInput" type="number" min="1" max="1000" step="0.001" inputmode="decimal" />
+            <span id="fpsNote" class="muted"></span>
+          </div>
+        </div>
+        <div class="next-row"><button class="btn btn-primary btn-next" data-goto="2">다음 단계 → 축척 설정</button></div>
+      </section>
+
+      <!-- ───────────── 2단계 ───────────── -->
+      <section id="step2" class="step" data-step="2" hidden>
+        <h2>2단계 · 축척과 수로 영역 정하기</h2>
+        <ol class="guide">
+          <li><b>눈금 두 점 찍기</b>를 누르고, 영상 속 자 위의 두 눈금을 차례로 누르세요. (누르고 있으면 확대경이 나와요)</li>
+          <li>두 점 사이의 실제 길이(mm)를 입력하세요. 예: 0 mm와 200 mm 눈금 → 200</li>
+          <li><b>수로 영역 그리기</b>를 누르고, 보트가 지나가는 물길을 대각선으로 끌어서 사각형으로 감싸세요.</li>
+        </ol>
+        <div id="msg2" class="msg" role="alert" hidden></div>
+        <div class="tool-row">
+          <button id="modeRuler" class="btn btn-toggle" aria-pressed="false">눈금 두 점 찍기</button>
+          <button id="modeRoi" class="btn btn-toggle" aria-pressed="false">수로 영역 그리기</button>
+        </div>
+        <div class="canvas-box"><canvas id="view2" class="drawable"></canvas></div>
+        <div class="frame-bar">
+          <button id="prev2" class="btn btn-icon" aria-label="이전 프레임">◀</button>
+          <button id="next2" class="btn btn-icon" aria-label="다음 프레임">▶</button>
+          <input id="seek2" type="range" min="0" max="0" value="0" aria-label="프레임 위치" />
+        </div>
+        <div class="field-row">
+          <label for="mmInput">두 점 사이 실제 길이 (mm)</label>
+          <input id="mmInput" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="예: 200" />
+        </div>
+        <div class="result-grid">
+          <div class="stat"><span class="k">두 점 거리</span><span id="pxDist" class="v">—</span></div>
+          <div class="stat"><span class="k">축척</span><span id="pxPerMm" class="v">—</span></div>
+          <div class="stat"><span class="k">수로 영역</span><span id="roiInfo" class="v">—</span></div>
+        </div>
+        <div class="next-row">
+          <button class="btn btn-ghost" data-goto="1">← 이전</button>
+          <button class="btn btn-primary btn-next" data-goto="3">다음 단계 → 보트 추적</button>
+        </div>
+      </section>
+
+      <!-- ───────────── 3단계 ───────────── -->
+      <section id="step3" class="step" data-step="3" hidden>
+        <h2>3단계 · 보트 추적</h2>
+        <ol class="guide">
+          <li><b>자동 추적 시작</b>을 누르면 프레임마다 보트 위치를 찾아요.</li>
+          <li>마스크 미리보기에서 <span class="swatch sw-blob"></span>주황색이 보트만 덮도록 <b>임계값</b>을 조절하세요.</li>
+          <li>틀린 프레임은 <b>직접 찍기</b>를 켜고 영상 위 보트 중심을 누르면 고쳐져요. 그래프의 점을 누르면 그 프레임으로 이동해요.</li>
+        </ol>
+        <div id="msg3" class="msg" role="alert" hidden></div>
+        <div class="tool-row">
+          <button id="btnTrack" class="btn btn-primary">자동 추적 시작</button>
+          <label class="inline">
+            <span>분석 방식</span>
+            <select id="grabMode">
+              <option value="auto">자동 (권장, 빠름)</option>
+              <option value="seek">호환 모드 (느림)</option>
+            </select>
+          </label>
+        </div>
+        <div id="progress3" class="progress" hidden><div class="bar"></div><span class="ptext"></span></div>
+
+        <div id="trackPanel" class="panel" hidden>
+          <div class="slider-row">
+            <label for="thr">임계값 (밝기 차이) <b id="thrVal">30</b></label>
+            <input id="thr" type="range" min="4" max="120" value="30" />
+            <button id="thrAuto" class="btn btn-small">자동 추천</button>
+          </div>
+          <div class="slider-row">
+            <label for="minArea">최소 크기 (화소) <b id="minAreaVal">6</b></label>
+            <input id="minArea" type="range" min="1" max="200" value="6" />
+          </div>
+          <div class="two-col">
+            <figure>
+              <figcaption>영상 (● 자동 추적, ▲ 직접 찍은 점)</figcaption>
+              <div class="canvas-box"><canvas id="view3"></canvas></div>
+            </figure>
+            <figure>
+              <figcaption>마스크 미리보기 (<span class="swatch sw-mask"></span>임계값 넘음, <span class="swatch sw-blob"></span>보트로 고른 덩어리)</figcaption>
+              <div class="canvas-box"><canvas id="mask3"></canvas></div>
+            </figure>
+          </div>
+          <div class="frame-bar">
+            <button id="prev3" class="btn btn-icon" aria-label="이전 프레임">◀</button>
+            <button id="next3" class="btn btn-icon" aria-label="다음 프레임">▶</button>
+            <input id="seek3" type="range" min="0" max="0" value="0" aria-label="분석 프레임" />
+          </div>
+          <p id="sampleInfo" class="mono"></p>
+          <div class="tool-row">
+            <button id="btnManual" class="btn btn-toggle" aria-pressed="false">직접 찍기</button>
+            <label class="inline check"><input id="autoNext" type="checkbox" checked /> 찍은 뒤 다음 프레임으로</label>
+            <button id="btnUndoManual" class="btn btn-small">이 프레임 자동값으로</button>
+            <button id="btnExclude" class="btn btn-small">이 프레임 제외</button>
+          </div>
+          <p id="trackSummary" class="summary"></p>
+          <h3>시간–위치 그래프</h3>
+          <div class="chart-box"><canvas id="chart3"></canvas></div>
+          <div class="tool-row">
+            <button id="btnCsv3" class="btn btn-outline">시간–위치 CSV 내려받기</button>
+          </div>
+        </div>
+        <div class="next-row">
+          <button class="btn btn-ghost" data-goto="2">← 이전</button>
+          <button class="btn btn-primary btn-next" data-goto="4">다음 단계 → 속도·농도 계산</button>
+        </div>
+      </section>
+
+      <!-- ───────────── 4단계 ───────────── -->
+      <section id="step4" class="step" data-step="4" hidden>
+        <h2>4단계 · 속도와 농도 계산</h2>
+        <div id="msg4" class="msg" role="alert" hidden></div>
+
+        <div class="card">
+          <h3>① 이번 영상의 속도</h3>
+          <p class="muted small">0.5초 창으로 직선을 맞춰 보고, 기울기 변화가 ±10% 이내이며 R² ≥ 0.98인 가장 긴 구간을 등속 구간으로 골라요.</p>
+          <div id="cvResult" class="callout"></div>
+          <div class="chart-box"><canvas id="chart4"></canvas></div>
+          <details id="manualBox">
+            <summary>구간 직접 고르기</summary>
+            <p class="muted small">그래프를 두 번 누르면 시작·끝이 정해져요. 숫자로 입력해도 돼요.</p>
+            <div class="field-row">
+              <label for="segStart">시작 (s)</label><input id="segStart" type="number" step="0.01" inputmode="decimal" />
+              <label for="segEnd">끝 (s)</label><input id="segEnd" type="number" step="0.01" inputmode="decimal" />
+            </div>
+            <div class="tool-row">
+              <button id="btnSegApply" class="btn btn-small">이 구간 쓰기</button>
+              <button id="btnSegAuto" class="btn btn-small">자동 탐지로 되돌리기</button>
+            </div>
+          </details>
+
+          <h4>측정 기록에 저장</h4>
+          <div class="form-grid">
+            <label>시료 이름<input id="recName" type="text" placeholder="예: 하천수 A" /></label>
+            <label>종류
+              <select id="recKind">
+                <option value="blank">정제수 (0 mg/L, 기준)</option>
+                <option value="sample" selected>시료 (농도 모름)</option>
+                <option value="standard">표준용액 (농도 앎)</option>
+              </select>
+            </label>
+            <label id="recConcWrap" hidden>농도 (mg/L)<input id="recConc" type="number" min="0" step="0.01" inputmode="decimal" /></label>
+            <label>속도 v (mm/s)<input id="recV" type="number" min="0" step="0.01" inputmode="decimal" /></label>
+          </div>
+          <p class="muted small">속도는 위에서 구한 값이 자동으로 들어가요. 다른 방법으로 잰 속도를 직접 써도 돼요.</p>
+          <button id="btnSave" class="btn btn-primary">기록에 저장</button>
+        </div>
+
+        <div class="card">
+          <h3>② 기준 속도 v<sub>0</sub> (정제수)</h3>
+          <div id="v0Box"></div>
+        </div>
+
+        <div class="card">
+          <h3>③ 표준곡선</h3>
+          <div class="tool-row">
+            <label class="inline"><span>곡선 모양</span>
+              <select id="curveModel">
+                <option value="linear">선형: v/v₀ = a + b·c</option>
+                <option value="log">로그 농도: v/v₀ = a + b·log₁₀c</option>
+              </select>
+            </label>
+          </div>
+          <div id="curveInfo" class="callout"></div>
+          <div class="chart-box"><canvas id="chart5"></canvas></div>
+          <h4>표준곡선 점</h4>
+          <div class="form-grid">
+            <label>농도 (mg/L)<input id="stdC" type="number" min="0" step="0.01" inputmode="decimal" /></label>
+            <label>v/v₀<input id="stdR" type="number" min="0" step="0.001" inputmode="decimal" /></label>
+          </div>
+          <div class="tool-row">
+            <button id="btnStdAdd" class="btn btn-small">점 추가</button>
+            <label class="btn btn-small file-btn">CSV 올리기<input id="stdFile" type="file" accept=".csv,text/csv,.txt" /></label>
+            <button id="btnStdCsv" class="btn btn-small">CSV 내려받기</button>
+            <button id="btnStdClear" class="btn btn-small">직접 입력한 점 모두 지우기</button>
+          </div>
+          <p class="muted small">CSV 형식: 첫째 열 농도(mg/L), 둘째 열 v/v₀. 첫 줄이 제목이어도 괜찮아요. 측정 기록의 ‘표준용액’도 자동으로 들어가요.</p>
+          <div class="table-wrap scroll"><table id="stdTable"></table></div>
+
+          <h4>감지한계(LOD)·정량한계(LOQ)</h4>
+          <p class="muted small">LOD = 3σ<sub>0</sub>/S, LOQ = 10σ<sub>0</sub>/S. σ<sub>0</sub>: 0 mg/L 반복 측정 v/v<sub>0</sub>의 표준편차, S: 저농도 직선의 기울기(1 mg/L당 v/v<sub>0</sub> 변화량, 크기만 사용).</p>
+          <div class="field-row">
+            <label for="sLo">S 구간 농도</label>
+            <select id="sLo"></select><span>~</span><select id="sHi"></select><span>mg/L</span>
+          </div>
+          <div id="lodBox" class="result-grid"></div>
+        </div>
+
+        <div class="card">
+          <h3>④ 측정 기록</h3>
+          <div class="table-wrap"><table id="recTable"></table></div>
+          <h4>시료별 반복 측정 요약</h4>
+          <div class="table-wrap"><table id="sumTable"></table></div>
+          <div class="tool-row">
+            <button id="btnRecCsv" class="btn btn-outline">측정 기록 CSV 내려받기</button>
+            <button id="btnRecClear" class="btn btn-small btn-danger">기록 모두 지우기</button>
+          </div>
+        </div>
+        <div class="next-row"><button class="btn btn-ghost" data-goto="3">← 이전</button></div>
+      </section>
+    </main>
+    <footer class="wrap foot muted small">모든 계산은 이 브라우저 안에서만 이뤄져요. 측정 기록은 이 브라우저에 저장돼요.</footer>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
