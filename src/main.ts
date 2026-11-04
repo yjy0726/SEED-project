@@ -1,3 +1,4 @@
+import 'pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css';
 import './style.css';
 import { loadPersisted, pxPerMm, samplePoint, state } from './state';
 import { $, hideMsg, isTyping, showMsg } from './ui/dom';
@@ -78,6 +79,22 @@ function init() {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }),
   );
+  $('btnDemo2').addEventListener('click', () => $('btnDemo').click());
+  // 지금 읽는 절을 목차에 표시
+  const tocLinks = new Map<string, HTMLAnchorElement>();
+  document.querySelectorAll<HTMLAnchorElement>('.th-toc a').forEach((a) => tocLinks.set((a.getAttribute('href') ?? '').slice(1), a));
+  if ('IntersectionObserver' in window) {
+    const seen = new Set<string>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) e.isIntersecting ? seen.add(e.target.id) : seen.delete(e.target.id);
+        const first = [...document.querySelectorAll<HTMLElement>('.th')].find((el) => seen.has(el.id));
+        tocLinks.forEach((a, id) => a.setAttribute('aria-current', String(first?.id === id)));
+      },
+      { rootMargin: '-140px 0px -55% 0px' },
+    );
+    document.querySelectorAll<HTMLElement>('.th').forEach((el) => io.observe(el));
+  }
   $('btnDemo').addEventListener('click', async () => {
     await loadDemo();
     showStep(1);

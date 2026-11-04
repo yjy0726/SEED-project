@@ -10,14 +10,11 @@
   <body>
     <header class="top">
       <div class="wrap top-inner">
-        <div>
-          <h1>장뇌 보트 분석기</h1>
-          <p class="sub">
-            장뇌(C<sub>10</sub>H<sub>16</sub>O) 보트의 속도로 세제(LAS, C<sub>n</sub>H<sub>2n+1</sub>C<sub>6</sub>H<sub>4</sub>SO<sub>3</sub><sup>−</sup>Na<sup>+</sup>) 농도를 추정해요.
-            영상은 이 컴퓨터 밖으로 나가지 않아요.
-          </p>
-        </div>
-        <button id="btnDemo" class="btn btn-outline">데모 불러오기</button>
+        <button class="brand" data-goto="0" aria-label="처음(이론)으로">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" /><path d="M7 18h18l-4 5H11z" /></svg>
+          <span>장뇌 보트 분석기</span>
+        </button>
+        <button id="btnDemo" class="btn btn-small">데모 불러오기</button>
       </div>
       <nav class="wrap steps" aria-label="단계">
         <button class="step-tab" data-step="0"><span class="num">0</span><span class="lbl">이론</span></button>
@@ -32,14 +29,17 @@
       <!-- ───────────── 이론 ───────────── -->
       <section id="step0" class="step theory" data-step="0">
         <div class="th-hero">
-          <h2>이론적 배경</h2>
+          <p class="eyebrow">이론적 배경</p>
+          <h2 class="display">장뇌 보트로 세제 농도를 재는 원리</h2>
           <p class="lead">
-            장뇌 보트가 왜 움직이고, 세제가 있으면 왜 느려지는지, 그리고 이 사이트가 속도에서 농도를 어떻게 계산하는지 차례로 설명해요.
-            처음이라면 위에서부터 천천히 읽고, 이미 알고 있다면 바로 분석을 시작해도 돼요.
+            장뇌(C<sub>10</sub>H<sub>16</sub>O) 보트는 수면의 표면장력 차이로 움직이고, 물에 세제(LAS, C<sub><i>n</i></sub>H<sub>2<i>n</i>+1</sub>C<sub>6</sub>H<sub>4</sub>SO<sub>3</sub><sup>−</sup>Na<sup>+</sup>)가 녹아 있으면 그 차이가 줄어 느려져요.
+            이 페이지는 그 원리와, 영상 속 보트 속도에서 농도를 계산하는 방법을 처음부터 차례로 설명해요.
           </p>
-          <div class="tool-row">
-            <button class="btn btn-primary" data-goto="1">바로 분석 시작하기 →</button>
+          <div class="hero-actions">
+            <button class="btn btn-primary" data-goto="1">분석 시작하기</button>
+            <button id="btnDemo2" class="btn">데모로 먼저 보기</button>
           </div>
+          <p class="fine">영상은 서버로 올라가지 않고 이 기기 안에서만 처리돼요.</p>
         </div>
 
         <div class="flow" aria-label="분석 흐름">
@@ -56,8 +56,9 @@
           <div class="flow-item"><b>LOD·LOQ</b><span>믿을 수 있나?</span></div>
         </div>
 
+        <div class="th-layout">
         <nav class="th-toc" aria-label="이론 목차">
-          <h3>목차</h3>
+          <p class="toc-title">이 페이지의 내용</p>
           <ol>
             <li><a href="#th-1">표면장력이란?</a></li>
             <li><a href="#th-2">장뇌 보트가 움직이는 이유 (마랑고니 효과)</a></li>
@@ -73,6 +74,7 @@
             <li><a href="#th-12">정확하게 재는 실험 요령</a></li>
           </ol>
         </nav>
+        <div class="th-body">
 
         <!-- 1 -->
         <article class="th" id="th-1">
@@ -515,12 +517,16 @@
           </ul>
         </div>
 
+        </div>
+        </div>
+
         <div class="next-row"><button class="btn btn-primary btn-next" data-goto="1">이해했어요 → 1단계 영상 불러오기</button></div>
       </section>
 
       <!-- ───────────── 1단계 ───────────── -->
       <section id="step1" class="step" data-step="1" hidden>
-        <h2>1단계 · 영상 불러오기</h2>
+        <p class="eyebrow">1단계 / 4</p>
+        <h2>영상 불러오기</h2>
         <ol class="guide">
           <li>아래 버튼을 눌러 촬영한 영상(mp4, mov)을 고르세요.</li>
           <li>◀ ▶ 버튼이나 키보드 좌우 방향키로 한 프레임씩 넘겨 볼 수 있어요.</li>
@@ -553,7 +559,8 @@
 
       <!-- ───────────── 2단계 ───────────── -->
       <section id="step2" class="step" data-step="2" hidden>
-        <h2>2단계 · 축척과 수로 영역 정하기</h2>
+        <p class="eyebrow">2단계 / 4</p>
+        <h2>축척과 수로 영역 정하기</h2>
         <ol class="guide">
           <li><b>눈금 두 점 찍기</b>를 누르고, 영상 속 자 위의 두 눈금을 차례로 누르세요. (누르고 있으면 확대경이 나와요)</li>
           <li>두 점 사이의 실제 길이(mm)를 입력하세요. 예: 0 mm와 200 mm 눈금 → 200</li>
@@ -587,7 +594,8 @@
 
       <!-- ───────────── 3단계 ───────────── -->
       <section id="step3" class="step" data-step="3" hidden>
-        <h2>3단계 · 보트 추적</h2>
+        <p class="eyebrow">3단계 / 4</p>
+        <h2>보트 추적</h2>
         <ol class="guide">
           <li><b>자동 추적 시작</b>을 누르면 프레임마다 보트 위치를 찾아요.</li>
           <li>마스크 미리보기에서 <span class="swatch sw-blob"></span>주황색이 보트만 덮도록 <b>임계값</b>을 조절하세요.</li>
@@ -653,11 +661,12 @@
 
       <!-- ───────────── 4단계 ───────────── -->
       <section id="step4" class="step" data-step="4" hidden>
-        <h2>4단계 · 속도와 농도 계산</h2>
+        <p class="eyebrow">4단계 / 4</p>
+        <h2>속도와 농도 계산</h2>
         <div id="msg4" class="msg" role="alert" hidden></div>
 
         <div class="card">
-          <h3>① 이번 영상의 속도</h3>
+          <h3>이번 영상의 속도</h3>
           <p class="muted small">0.5초 창으로 직선을 맞춰 보고, 기울기 변화가 ±10% 이내이며 R² ≥ 0.98인 가장 긴 구간을 등속 구간으로 골라요.</p>
           <div id="cvResult" class="callout"></div>
           <div class="chart-box"><canvas id="chart4"></canvas></div>
@@ -692,12 +701,12 @@
         </div>
 
         <div class="card">
-          <h3>② 기준 속도 v<sub>0</sub> (정제수)</h3>
+          <h3>기준 속도 v<sub>0</sub> (정제수)</h3>
           <div id="v0Box"></div>
         </div>
 
         <div class="card">
-          <h3>③ 표준곡선</h3>
+          <h3>표준곡선</h3>
           <div class="tool-row">
             <label class="inline"><span>곡선 모양</span>
               <select id="curveModel">
@@ -734,7 +743,7 @@
         </div>
 
         <div class="card">
-          <h3>④ 측정 기록</h3>
+          <h3>측정 기록</h3>
           <div class="table-wrap"><table id="recTable"></table></div>
           <h4>시료별 반복 측정 요약</h4>
           <div class="table-wrap"><table id="sumTable"></table></div>
@@ -746,7 +755,7 @@
         <div class="next-row"><button class="btn btn-ghost" data-goto="3">← 이전</button></div>
       </section>
     </main>
-    <footer class="wrap foot muted small">모든 계산은 이 브라우저 안에서만 이뤄져요. 측정 기록은 이 브라우저에 저장돼요.</footer>
+    <footer class="wrap foot">모든 계산은 이 브라우저 안에서만 이뤄져요. 측정 기록은 이 브라우저에 저장돼요.</footer>
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

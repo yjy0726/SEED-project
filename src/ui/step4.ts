@@ -579,7 +579,7 @@ function renderRecords(dv: Derived) {
     })
     .join('');
   $('recTable').innerHTML = `<thead><tr><th>시료 이름</th><th>종류</th><th>표준 농도 (mg/L)</th><th>v (mm/s)</th><th>v/v<sub>0</sub></th><th>추정 농도 (mg/L)</th><th style="text-align:left">비고</th><th></th></tr></thead><tbody>${
-    rows || '<tr><td colspan="8" class="empty">아직 기록이 없어요. ①에서 ‘기록에 저장’을 누르세요.</td></tr>'
+    rows || '<tr><td colspan="8" class="empty">아직 기록이 없어요. 위의 ‘기록에 저장’을 누르세요.</td></tr>'
   }</tbody>`;
 
   const groups = sampleGroups(dv);
