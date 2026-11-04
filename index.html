@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="장뇌 보트 영상에서 속도를 구하고 표준곡선으로 세제(LAS) 농도를 추정하는 브라우저 전용 분석 도구" />
+    <title>장뇌 보트 분석기</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231B2A5C'/%3E%3Cpath d='M6 19h20l-4 5H10z' fill='white'/%3E%3C/svg%3E" />
+    <script type="module" crossorigin src="./assets/index-CX9nov91.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-D7v_acKz.css">
+  </head>
+  <body>
+    <header class="top">
+      <div class="wrap top-inner">
+        <button class="brand" data-goto="0" aria-label="처음(이론)으로">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" /><path d="M7 18h18l-4 5H11z" /></svg>
+          <span>장뇌 보트 분석기</span>
+        </button>
+        <button id="btnDemo" class="btn btn-small">데모 불러오기</button>
+      </div>
+      <nav class="wrap steps" aria-label="단계">
+        <button class="step-tab" data-step="0"><span class="num">0</span><span class="lbl">이론</span></button>
+        <button class="step-tab" data-step="1"><span class="num">1</span><span class="lbl">영상</span></button>
+        <button class="step-tab" data-step="2"><span class="num">2</span><span class="lbl">축척</span></button>
+        <button class="step-tab" data-step="3"><span class="num">3</span><span class="lbl">추적</span></button>
+        <button class="step-tab" data-step="4"><span class="num">4</span><span class="lbl">속도·농도</span></button>
+      </nav>
+    </header>
+
+    <main class="wrap">
+      <!-- ───────────── 이론 ───────────── -->
+      <section id="step0" class="step theory" data-step="0">
+        <div class="th-hero">
+          <p class="eyebrow">이론적 배경</p>
+          <h2 class="display">장뇌 보트로 세제 농도를 재는 원리</h2>
+          <p class="lead">
+            장뇌(C<sub>10</sub>H<sub>16</sub>O) 보트는 수면의 표면장력 차이로 움직이고, 물에 세제(LAS, C<sub><i>n</i></sub>H<sub>2<i>n</i>+1</sub>C<sub>6</sub>H<sub>4</sub>SO<sub>3</sub><sup>−</sup>Na<sup>+</sup>)가 녹아 있으면 그 차이가 줄어 느려져요.
+            이 페이지는 그 원리와, 영상 속 보트 속도에서 농도를 계산하는 방법을 처음부터 차례로 설명해요.
+          </p>
+          <div class="hero-actions">
+            <button class="btn btn-primary" data-goto="1">분석 시작하기</button>
+            <button id="btnDemo2" class="btn">데모로 먼저 보기</button>
+          </div>
+          <p class="fine">영상은 서버로 올라가지 않고 이 기기 안에서만 처리돼요.</p>
+        </div>
+
+        <div class="flow" aria-label="분석 흐름">
+          <div class="flow-item"><b>영상</b><span>보트 촬영</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-item"><b>위치 x(t)</b><span>프레임마다 추적</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-item"><b>속도 v</b><span>등속 구간 기울기</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-item"><b>v/v<sub>0</sub></b><span>정제수로 나눔</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-item"><b>농도 c</b><span>표준곡선 역산</span></div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-item"><b>LOD·LOQ</b><span>믿을 수 있나?</span></div>
+        </div>
+
+        <div class="th-layout">
+        <nav class="th-toc" aria-label="이론 목차">
+          <p class="toc-title">이 페이지의 내용</p>
+          <ol>
+            <li><a href="#th-1">표면장력이란?</a></li>
+            <li><a href="#th-2">장뇌 보트가 움직이는 이유 (마랑고니 효과)</a></li>
+            <li><a href="#th-3">세제(LAS)가 있으면 왜 느려질까?</a></li>
+            <li><a href="#th-4">왜 ‘등속 구간’의 속도를 쓸까?</a></li>
+            <li><a href="#th-5">위치–시간 그래프에서 속도 구하기</a></li>
+            <li><a href="#th-6">왜 상대속도 v/v<sub>0</sub>를 쓸까?</a></li>
+            <li><a href="#th-7">표면장력과 농도의 관계 (시슈코프스키 식)</a></li>
+            <li><a href="#th-8">표준곡선 모형 고르기</a></li>
+            <li><a href="#th-9">속도로 농도 거꾸로 구하기 (역산)</a></li>
+            <li><a href="#th-10">감지한계(LOD)와 정량한계(LOQ)</a></li>
+            <li><a href="#th-11">영상에서 보트 위치를 찾는 원리</a></li>
+            <li><a href="#th-12">정확하게 재는 실험 요령</a></li>
+          </ol>
+        </nav>
+        <div class="th-body">
+
+        <!-- 1 -->
+        <article class="th" id="th-1">
+          <h3><span class="th-n">1</span>표면장력이란?</h3>
+          <p class="key"><b>핵심</b> 물 표면은 팽팽하게 당겨진 고무막처럼 스스로 넓이를 줄이려고 해요. 이때 표면이 당기는 힘의 세기가 <b>표면장력 γ</b>(감마)예요.</p>
+          <p>
+            물속 깊은 곳의 물 분자는 위·아래·옆 모든 방향에서 이웃 분자와 수소 결합으로 당겨져 힘이 균형을 이뤄요.
+            그런데 표면에 있는 분자는 위쪽(공기 쪽)에 짝이 없어서 <b>옆과 아래로만</b> 당겨져요.
+            그래서 표면은 안쪽으로 오그라들며 넓이를 줄이려 해요. 소금쟁이가 물 위에 서고, 물방울이 동그래지는 것도 이 때문이에요.
+          </p>
+          <div class="eq" role="math" aria-label="표면장력의 정의: 힘 F는 표면장력 감마 곱하기 길이 L">
+            <var>F</var> = <var>γ</var> × <var>L</var>
+          </div>
+          <dl class="sym">
+            <div><dt><var>γ</var></dt><dd>표면장력. 표면 위의 길이 1 m짜리 선을 양쪽에서 잡아당기는 힘. 단위 N/m (보통 mN/m)</dd></div>
+            <div><dt><var>L</var></dt><dd>힘이 작용하는 경계선의 길이 (m)</dd></div>
+          </dl>
+          <p>
+            순수한 물의 표면장력은 25 °C에서 약 <b>72 mN/m</b>로, 흔한 액체 중에서 큰 편이에요.
+            온도가 올라가면 분자끼리 당기는 힘이 약해져 표면장력이 작아져요. 그래서 실험 중에는 물 온도를 일정하게 유지해야 해요.
+          </p>
+        </article>
+
+        <!-- 2 -->
+        <article class="th" id="th-2">
+          <h3><span class="th-n">2</span>장뇌 보트가 움직이는 이유 (마랑고니 효과)</h3>
+          <p class="key"><b>핵심</b> 보트 뒤에 붙인 장뇌가 녹아 나와 <b>뒤쪽</b> 수면의 표면장력만 낮춰요. 앞쪽 물이 더 세게 당기니 보트가 앞으로 끌려가요.</p>
+          <figure class="th-fig">
+            <svg viewBox="0 0 640 222" role="img" aria-labelledby="figBoatT figBoatD">
+              <title id="figBoatT">장뇌 보트에 작용하는 표면장력</title>
+              <desc id="figBoatD">보트 뒤쪽은 장뇌가 퍼져 표면장력이 작고, 앞쪽은 깨끗한 물이라 표면장력이 커서, 두 힘의 차이만큼 보트가 앞으로 나아간다.</desc>
+              <rect class="f-water" x="10" y="20" width="620" height="190" rx="10" />
+              <ellipse class="f-camphor" cx="190" cy="115" rx="150" ry="78" />
+              <text class="f-small" x="95" y="52">장뇌가 퍼진 수면</text>
+              <text class="f-small" x="95" y="70">→ 표면장력 작음 (γ뒤)</text>
+              <text class="f-small" x="455" y="52">깨끗한 물</text>
+              <text class="f-small" x="455" y="70">→ 표면장력 큼 (γ앞)</text>
+              <path class="f-boat" d="M250,90 L370,90 L405,115 L370,140 L250,140 Z" />
+              <rect class="f-camphor-piece" x="238" y="104" width="14" height="22" rx="3" />
+              <text class="f-label" x="300" y="120">보트</text>
+              <text class="f-tiny" x="214" y="160">장뇌 조각</text>
+              <line class="f-arrow-big" x1="408" y1="115" x2="540" y2="115" marker-end="url(#ahNavy)" />
+              <text class="f-label" x="440" y="105">γ앞 × w</text>
+              <line class="f-arrow-small" x1="246" y1="115" x2="196" y2="115" marker-end="url(#ahOrange)" />
+              <text class="f-label" x="150" y="100">γ뒤 × w</text>
+              <line class="f-arrow-net" x1="250" y1="190" x2="420" y2="190" marker-end="url(#ahInk)" />
+              <text class="f-label" x="430" y="195">추진력 F = w·(γ앞 − γ뒤)</text>
+              <defs>
+                <marker id="ahNavy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-head-navy" /></marker>
+                <marker id="ahOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-head-orange" /></marker>
+                <marker id="ahInk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="f-head-ink" /></marker>
+              </defs>
+            </svg>
+            <figcaption>위에서 내려다본 모습. 화살표 길이가 힘의 크기예요. 앞쪽이 더 세게 당기므로 보트가 오른쪽으로 가요.</figcaption>
+          </figure>
+          <p>
+            장뇌(C<sub>10</sub>H<sub>16</sub>O)는 물에 조금 녹으면서 수면에 얇게 퍼지는 분자예요. 수면에 퍼진 장뇌는 물 분자끼리 당기는 힘을 방해해서 그 부분의 표면장력을 낮춰요.
+            보트는 둘레 전체가 수면에 당겨지는데, 뒤쪽은 약하게, 앞쪽은 세게 당겨지니 그 차이만큼 앞으로 힘을 받아요.
+          </p>
+          <div class="eq" role="math" aria-label="추진력 F는 보트 폭 w 곱하기 앞뒤 표면장력 차이">
+            <var>F</var><sub>추진</sub> ≈ <var>w</var> × (<var>γ</var><sub>앞</sub> − <var>γ</var><sub>뒤</sub>) = <var>w</var> · Δ<var>γ</var>
+          </div>
+          <dl class="sym">
+            <div><dt><var>w</var></dt><dd>보트의 폭 (m)</dd></div>
+            <div><dt>Δ<var>γ</var></dt><dd>앞뒤 표면장력 차이 (N/m). 이 값이 클수록 추진력이 커요.</dd></div>
+          </dl>
+          <p>
+            이렇게 <b>표면장력의 차이 때문에 표면과 그 위의 물체가 움직이는 현상</b>을 <b>마랑고니 효과</b>라고 해요.
+            장뇌는 계속 조금씩 녹아 나오고, 퍼진 장뇌는 물속으로 녹아들거나 공기 중으로 날아가며 사라져요. 그래서 뒤쪽은 계속 표면장력이 낮게 유지되고, 보트는 한동안 일정한 힘으로 나아가요.
+          </p>
+        </article>
+
+        <!-- 3 -->
+        <article class="th" id="th-3">
+          <h3><span class="th-n">3</span>세제(LAS)가 있으면 왜 느려질까?</h3>
+          <p class="key"><b>핵심</b> 세제 분자가 물 표면에 먼저 자리를 잡아 <b>앞쪽</b> 표면장력 γ<sub>앞</sub>까지 낮춰요. 앞뒤 차이 Δγ가 줄어드니 추진력이 줄고 보트가 느려져요.</p>
+          <p>
+            LAS(선형 알킬벤젠설폰산 나트륨)는 가정용 세제에 가장 많이 쓰이는 계면활성제예요. 분자 한 개는 성질이 다른 두 부분으로 되어 있어요.
+          </p>
+          <div class="eq formula" role="math" aria-label="LAS 화학식">
+            C<sub><var>n</var></sub>H<sub>2<var>n</var>+1</sub>–C<sub>6</sub>H<sub>4</sub>–SO<sub>3</sub><sup>−</sup> Na<sup>+</sup>
+            <span class="eq-note">(<var>n</var> ≈ 10~13)</span>
+          </div>
+          <div class="two-col th-cards">
+            <div class="th-card">
+              <b>물을 싫어하는 꼬리</b>
+              <p>긴 탄소 사슬(C<sub><var>n</var></sub>H<sub>2<var>n</var>+1</sub>)과 벤젠 고리(C<sub>6</sub>H<sub>4</sub>). 물속에 있기 싫어해서 공기 쪽으로 고개를 내밀어요.</p>
+            </div>
+            <div class="th-card">
+              <b>물을 좋아하는 머리</b>
+              <p>설폰산 이온(–SO<sub>3</sub><sup>−</sup>). 물과 잘 어울려서 물속에 머물러요. Na<sup>+</sup>는 물속에 따로 떠다녀요.</p>
+            </div>
+          </div>
+          <p>
+            그래서 LAS 분자는 수면에 <b>머리는 물속, 꼬리는 공기 쪽</b>으로 줄지어 늘어서요(흡착). 표면에 끼어든 세제 분자가 물 분자끼리 당기는 힘을 끊어 놓으니 표면장력이 작아져요.
+          </p>
+          <div class="eq" role="math" aria-label="세제 농도가 커지면 앞쪽 표면장력이 작아지고 표면장력 차이와 속도가 작아진다">
+            <var>c</var> ↑ ⟹ <var>γ</var><sub>앞</sub> ↓ ⟹ Δ<var>γ</var> = <var>γ</var><sub>앞</sub> − <var>γ</var><sub>뒤</sub> ↓ ⟹ <var>F</var><sub>추진</sub> ↓ ⟹ <var>v</var> ↓
+          </div>
+          <p>
+            표면에 붙는 분자는 아주 조금만 있어도 효과가 커서, <b>mg/L</b> 수준(물 1 L에 수 mg)의 세제도 보트 속도를 바꿀 수 있어요.
+            1 mg/L는 물 1 L(약 1 kg)에 1 mg이 녹아 있다는 뜻으로, 약 1 ppm(백만분의 1)이에요.
+            반대로 말하면 이 방법은 <b>표면 오염에 매우 민감</b>해요. 손가락의 기름이나 비누가 남은 그릇도 결과를 바꿀 수 있어요.
+          </p>
+        </article>
+
+        <!-- 4 -->
+        <article class="th" id="th-4">
+          <h3><span class="th-n">4</span>왜 ‘등속 구간’의 속도를 쓸까?</h3>
+          <p class="key"><b>핵심</b> 속도가 일정할 때는 <b>앞으로 미는 힘 = 뒤로 끄는 저항</b>이에요. 이때의 속도만 추진력(Δγ)을 정직하게 나타내요.</p>
+          <p>보트에 뉴턴 운동 제2법칙을 쓰면 다음과 같아요.</p>
+          <div class="eq" role="math" aria-label="질량 곱하기 가속도는 추진력 빼기 저항력">
+            <var>m</var> · <var>a</var> = <var>F</var><sub>추진</sub> − <var>F</var><sub>저항</sub>
+          </div>
+          <ul class="th-list">
+            <li><b>출발 직후</b>: 추진력이 저항보다 커서 빨라져요 (<var>a</var> &gt; 0, 가속 구간).</li>
+            <li><b>등속 구간</b>: 빨라질수록 저항이 커져 결국 두 힘이 같아져요 (<var>a</var> = 0). 이때 <var>F</var><sub>추진</sub> = <var>F</var><sub>저항</sub>.</li>
+            <li><b>끝 무렵</b>: 벽에 가까워지거나 장뇌가 줄어 느려져요 (<var>a</var> &lt; 0, 감속 구간).</li>
+          </ul>
+          <p>물의 저항은 보트가 느릴 때는 속도에 비례하고, 빠를 때는 속도의 제곱에 가까워져요.</p>
+          <div class="eq-grid">
+            <div class="eq" role="math" aria-label="느릴 때 저항은 k 곱하기 v, 그래서 v는 w 델타 감마 나누기 k">
+              <span class="eq-cap">느릴 때 (점성 저항)</span>
+              <var>F</var><sub>저항</sub> = <var>k</var>·<var>v</var> ⟹ <var>v</var> = <span class="frac"><span><var>w</var>·Δ<var>γ</var></span><span><var>k</var></span></span>
+            </div>
+            <div class="eq" role="math" aria-label="빠를 때 저항은 k프라임 곱하기 v 제곱, 그래서 v는 루트 w 델타 감마 나누기 k프라임">
+              <span class="eq-cap">빠를 때 (관성 저항)</span>
+              <var>F</var><sub>저항</sub> = <var>k′</var>·<var>v</var><sup>2</sup> ⟹ <var>v</var> = <span class="sqrt">√<span class="rad"><span class="frac"><span><var>w</var>·Δ<var>γ</var></span><span><var>k′</var></span></span></span></span>
+            </div>
+          </div>
+          <p>
+            어느 쪽이든 <b>Δγ가 작아지면 v도 작아져요</b>. 그래서 속도를 재면 세제의 양을 알 수 있어요.
+            가속·감속 구간이 섞이면 힘의 균형식이 맞지 않으니, 이 사이트는 자동으로 등속 구간만 골라 써요.
+          </p>
+        </article>
+
+        <!-- 5 -->
+        <article class="th" id="th-5">
+          <h3><span class="th-n">5</span>위치–시간 그래프에서 속도 구하기</h3>
+          <p class="key"><b>핵심</b> 속도가 일정하면 위치–시간 그래프가 <b>직선</b>이 되고, 그 <b>기울기가 속도</b>예요. 점들에 가장 잘 맞는 직선은 최소제곱법으로 구해요.</p>
+          <div class="eq" role="math" aria-label="위치 x는 v 곱하기 t 더하기 x0">
+            <var>x</var>(<var>t</var>) = <var>v</var> · <var>t</var> + <var>x</var><sub>0</sub>
+          </div>
+          <p>
+            측정한 점 (<var>t</var><sub><var>i</var></sub>, <var>x</var><sub><var>i</var></sub>)에는 작은 흔들림이 있어서 정확히 한 직선 위에 있지 않아요.
+            <b>최소제곱법</b>은 ‘점과 직선 사이 세로 거리의 제곱’을 모두 더한 값이 가장 작아지는 직선을 고르는 방법이에요.
+          </p>
+          <div class="eq-grid">
+            <div class="eq" role="math" aria-label="기울기 v는 시그마 t i 빼기 t평균 곱하기 x i 빼기 x평균 나누기 시그마 t i 빼기 t평균의 제곱">
+              <span class="eq-cap">기울기 = 속도</span>
+              <var>v</var> = <span class="frac"><span>Σ(<var>t</var><sub><var>i</var></sub> − <var>t̄</var>)(<var>x</var><sub><var>i</var></sub> − <var>x̄</var>)</span><span>Σ(<var>t</var><sub><var>i</var></sub> − <var>t̄</var>)<sup>2</sup></span></span>
+            </div>
+            <div class="eq" role="math" aria-label="결정계수 R제곱은 1 빼기 잔차 제곱합 나누기 전체 제곱합">
+              <span class="eq-cap">결정계수 (직선에 얼마나 잘 맞나)</span>
+              <var>R</var><sup>2</sup> = 1 − <span class="frac"><span>Σ(<var>x</var><sub><var>i</var></sub> − <var>x̂</var><sub><var>i</var></sub>)<sup>2</sup></span><span>Σ(<var>x</var><sub><var>i</var></sub> − <var>x̄</var>)<sup>2</sup></span></span>
+            </div>
+          </div>
+          <dl class="sym">
+            <div><dt><var>t̄</var>, <var>x̄</var></dt><dd>시간과 위치의 평균</dd></div>
+            <div><dt><var>x̂</var><sub><var>i</var></sub></dt><dd>직선이 예측한 위치</dd></div>
+            <div><dt><var>R</var><sup>2</sup></dt><dd>1이면 모든 점이 직선 위에 있어요. 0에 가까울수록 직선과 관계없이 흩어져 있어요.</dd></div>
+          </dl>
+          <h4>등속 구간을 자동으로 찾는 규칙</h4>
+          <ol class="th-steps">
+            <li>그래프를 <b>0.5초 길이의 창</b>으로 잘라, 한 점씩 옮기며 창마다 직선을 맞춰요.</li>
+            <li><b>R<sup>2</sup> ≥ 0.98</b>인 창만 ‘곧은 창’으로 인정해요.</li>
+            <li>곧은 창이 끊기지 않고 이어지면서, 모든 창의 기울기가 그 묶음 평균의 <b>±10% 안</b>인 가장 긴 묶음을 찾아요.</li>
+            <li>그 묶음이 덮는 시간 전체로 다시 직선을 맞춰, 기울기의 크기를 속도 <var>v</var>로 정해요.</li>
+          </ol>
+          <p class="muted">0.5초를 쓰는 이유: 30 fps 영상이면 창 하나에 점이 15개쯤 들어가 기울기를 믿을 만큼 많고, 가속 구간이 섞이지 않을 만큼 짧아요.</p>
+        </article>
+
+        <!-- 6 -->
+        <article class="th" id="th-6">
+          <h3><span class="th-n">6</span>왜 상대속도 v/v<sub>0</sub>를 쓸까?</h3>
+          <p class="key"><b>핵심</b> 보트 모양, 장뇌 양, 물 온도처럼 실험 세트마다 다른 조건은 <b>정제수 속도 v<sub>0</sub>로 나누면 약분돼 사라져요</b>. 세제의 효과만 남아요.</p>
+          <p>
+            같은 보트·같은 장뇌·같은 수로로 정제수(0 mg/L)에서 잰 속도를 <var>v</var><sub>0</sub>라고 해요. 4절의 점성 저항 식을 쓰면
+          </p>
+          <div class="eq" role="math" aria-label="v 나누기 v0는 델타 감마 c 나누기 델타 감마 0">
+            <span class="frac"><span><var>v</var></span><span><var>v</var><sub>0</sub></span></span> =
+            <span class="frac"><span><var>w</var>·Δ<var>γ</var>(<var>c</var>) / <var>k</var></span><span><var>w</var>·Δ<var>γ</var>(0) / <var>k</var></span></span> =
+            <span class="frac"><span>Δ<var>γ</var>(<var>c</var>)</span><span>Δ<var>γ</var>(0)</span></span>
+          </div>
+          <p>
+            보트 폭 <var>w</var>와 저항 계수 <var>k</var>가 위아래에서 지워졌어요. 그래서 v/v<sub>0</sub>는 <b>정제수에서 1</b>이고, 세제가 많을수록 0에 가까워져요.
+            단위도 없어서 다른 날, 다른 보트로 잰 결과도 비교하기 쉬워요.
+          </p>
+          <ul class="th-list">
+            <li><b>정제수를 3번 이상</b> 재는 이유: 한 번만 재면 우연한 흔들림을 구별할 수 없어요. 여러 번 재야 흔들림의 크기(σ<sub>0</sub>, 10절)도 알 수 있어요.</li>
+            <li><b>평균 대신 중앙값</b>으로 v<sub>0</sub>를 정하는 이유: 한 번 크게 튄 값(예: 수면이 오염된 측정)이 있어도 중앙값은 거의 흔들리지 않아요.</li>
+          </ul>
+          <details class="deep">
+            <summary>더 알아보기: 빠를 때(관성 저항)는?</summary>
+            <p>
+              저항이 <var>v</var><sup>2</sup>에 비례하면 v/v<sub>0</sub> = √(Δγ(c)/Δγ(0))가 돼요. 제곱근이 붙지만 여전히 Δγ만으로 정해지고 보트·수로 조건은 약분돼요.
+              Δγ의 변화가 크지 않을 때는 √(1 − x) ≈ 1 − x/2 이므로 다음 절의 식과 거의 같은 모양이에요. 그래서 이 사이트는 식의 계수를 실험값에 맞춰 정해요(8절).
+            </p>
+          </details>
+        </article>
+
+        <!-- 7 -->
+        <article class="th" id="th-7">
+          <h3><span class="th-n">7</span>표면장력과 농도의 관계 (시슈코프스키 식)</h3>
+          <p class="key"><b>핵심</b> 세제가 아주 묽을 때는 표면장력이 농도에 <b>비례</b>해 줄고, 조금 진해지면 농도의 <b>로그</b>에 비례해 줄며, 어느 농도(CMC) 이상에서는 더 줄지 않아요.</p>
+          <div class="eq eq-big" role="math" aria-label="감마 c는 감마0 빼기 R T 감마 무한대 곱하기 자연로그 1 더하기 K c">
+            <var>γ</var>(<var>c</var>) = <var>γ</var><sub>0</sub> − <var>RT</var><var>Γ</var><sub>∞</sub> · ln(1 + <var>K</var>·<var>c</var>)
+          </div>
+          <dl class="sym">
+            <div><dt><var>γ</var><sub>0</sub></dt><dd>세제가 없는 물의 표면장력 (N/m)</dd></div>
+            <div><dt><var>R</var></dt><dd>기체 상수 8.314 J/(mol·K)</dd></div>
+            <div><dt><var>T</var></dt><dd>절대온도 (K) = °C + 273.15</dd></div>
+            <div><dt><var>Γ</var><sub>∞</sub></dt><dd>표면이 세제 분자로 꽉 찼을 때 1 m<sup>2</sup>에 붙은 분자의 양 (mol/m<sup>2</sup>)</dd></div>
+            <div><dt><var>K</var></dt><dd>세제가 표면에 얼마나 잘 달라붙는지 나타내는 흡착 상수 (L/mg)</dd></div>
+            <div><dt><var>c</var></dt><dd>세제 농도 (mg/L)</dd></div>
+          </dl>
+          <figure class="th-fig">
+            <svg viewBox="0 0 640 260" role="img" aria-labelledby="figSzT figSzD">
+              <title id="figSzT">농도에 따른 표면장력 변화 개념도</title>
+              <desc id="figSzD">가로축은 농도의 로그, 세로축은 표면장력. 묽은 구간에서는 거의 평평하다가 내려가고, 중간 구간에서는 직선으로 내려가며, CMC 이후에는 평평해진다.</desc>
+              <rect class="f-zone1" x="70" y="22" width="180" height="196" />
+              <rect class="f-zone2" x="250" y="22" width="234" height="196" />
+              <rect class="f-zone3" x="484" y="22" width="126" height="196" />
+              <line class="f-axis" x1="70" y1="218" x2="612" y2="218" />
+              <line class="f-axis" x1="70" y1="218" x2="70" y2="20" />
+              <polyline class="f-curve" fill="none" points="70.0,38.0 79.0,38.0 88.0,38.1 97.0,38.1 106.0,38.1 115.0,38.1 124.0,38.1 133.0,38.2 142.0,38.2 151.0,38.3 160.0,38.4 169.0,38.5 178.0,38.6 187.0,38.7 196.0,38.9 205.0,39.1 214.0,39.4 223.0,39.8 232.0,40.2 241.0,40.8 250.0,41.5 259.0,42.4 268.0,43.4 277.0,44.7 286.0,46.2 295.0,48.1 304.0,50.3 313.0,52.9 322.0,56.0 331.0,59.5 340.0,63.5 349.0,68.0 358.0,72.9 367.0,78.3 376.0,84.2 385.0,90.4 394.0,97.0 403.0,104.0 412.0,111.1 421.0,118.6 430.0,126.2 439.0,134.0 448.0,141.9 457.0,149.9 466.0,158.0 475.0,166.2 484.0,174.4 493.0,174.4 520.0,174.4 560.0,174.4 610.0,174.4" />
+              <circle class="f-dot" cx="484" cy="174.4" r="5" />
+              <text class="f-small" x="80" y="200">① 묽은 구간</text>
+              <text class="f-tiny" x="80" y="214">c에 비례 → ‘선형’</text>
+              <text class="f-small" x="262" y="200">② 중간 구간</text>
+              <text class="f-tiny" x="262" y="214">log c에 비례 → ‘로그’</text>
+              <text class="f-small" x="494" y="200">③ CMC 이상</text>
+              <text class="f-tiny" x="494" y="214">거의 일정</text>
+              <text class="f-small" x="492" y="166">CMC</text>
+              <text class="f-axis-label" x="340" y="244">세제 농도 (로그 눈금) →</text>
+              <text class="f-axis-label" x="22" y="130" transform="rotate(-90 22 130)">표면장력 γ →</text>
+            </svg>
+            <figcaption>개념도예요(눈금은 실제 값이 아니에요). ①은 가로축이 로그 눈금이라 평평해 보이지만, 보통 눈금으로 그리면 농도에 비례해 곧게 내려가요. 이 실험의 범위(0~10 mg/L)는 주로 ①과 ②에 걸쳐 있어요.</figcaption>
+          </figure>
+          <p>식 안의 ln(1 + <var>Kc</var>) 때문에 농도에 따라 모양이 바뀌어요.</p>
+          <div class="regimes">
+            <div class="regime">
+              <b>① 묽은 구간 (<var>Kc</var> ≪ 1)</b>
+              <p>ln(1 + <var>x</var>) ≈ <var>x</var> 이므로</p>
+              <p class="eq-inline"><var>γ</var> ≈ <var>γ</var><sub>0</sub> − (<var>RT</var><var>Γ</var><sub>∞</sub><var>K</var>)·<var>c</var></p>
+              <p>농도에 비례해 직선으로 줄어요.</p>
+            </div>
+            <div class="regime">
+              <b>② 중간 구간 (<var>Kc</var> ≫ 1)</b>
+              <p>ln(1 + <var>Kc</var>) ≈ ln <var>K</var> + ln <var>c</var> 이므로</p>
+              <p class="eq-inline"><var>γ</var> ≈ 상수 − <var>RT</var><var>Γ</var><sub>∞</sub>·ln <var>c</var></p>
+              <p>로그 눈금에서 직선이 돼요.</p>
+            </div>
+            <div class="regime">
+              <b>③ 임계 미셀 농도(CMC) 이상</b>
+              <p>표면이 꽉 차면 남는 세제 분자는 물속에서 공 모양 덩어리(미셀)를 만들어요. 표면장력은 거의 더 줄지 않아요.</p>
+              <p>LAS의 CMC는 수백 mg/L 정도라, 이 실험 범위보다 훨씬 높아요.</p>
+            </div>
+          </div>
+          <details class="deep">
+            <summary>더 알아보기: 시슈코프스키 식은 어디서 나올까?</summary>
+            <p>두 가지 법칙을 합치면 나와요.</p>
+            <p><b>깁스 흡착식</b>: 표면에 붙은 양 Γ와 표면장력 변화의 관계</p>
+            <div class="eq" role="math" aria-label="감마 표면 흡착량은 마이너스 1 나누기 R T 곱하기 d 감마 나누기 d ln c">
+              <var>Γ</var> = − <span class="frac"><span>1</span><span><var>RT</var></span></span> · <span class="frac"><span>d<var>γ</var></span><span>d ln <var>c</var></span></span>
+            </div>
+            <p><b>랭뮤어 흡착식</b>: 표면의 자리 수가 정해져 있어서, 농도가 커져도 붙는 양이 Γ<sub>∞</sub>를 넘지 못함</p>
+            <div class="eq" role="math" aria-label="감마는 감마 무한대 곱하기 K c 나누기 1 더하기 K c">
+              <var>Γ</var> = <var>Γ</var><sub>∞</sub> · <span class="frac"><span><var>Kc</var></span><span>1 + <var>Kc</var></span></span>
+            </div>
+            <p>두 식을 같게 놓으면 d<var>γ</var> = −<var>RT</var><var>Γ</var><sub>∞</sub> · <var>K</var>/(1 + <var>Kc</var>) d<var>c</var> 이고, 이것을 0부터 <var>c</var>까지 적분하면 시슈코프스키 식이 돼요.</p>
+            <p class="muted">LAS 같은 이온성 세제는 짝이온(Na<sup>+</sup>)도 함께 움직여서 <var>RT</var> 대신 2<var>RT</var>를 쓰기도 해요. 앞의 계수만 바뀌고 식의 모양은 같아서, 계수를 실험으로 맞추는 이 사이트의 분석에는 영향이 없어요.</p>
+          </details>
+        </article>
+
+        <!-- 8 -->
+        <article class="th" id="th-8">
+          <h3><span class="th-n">8</span>표준곡선 모형 고르기</h3>
+          <p class="key"><b>핵심</b> 기본은 <b>표면장력 모형</b>을 쓰세요. 6절과 7절을 합친 식이라 묽은 구간과 중간 구간을 모두 설명해요.</p>
+          <p>6절의 v/v<sub>0</sub> = Δγ(c)/Δγ(0)에 7절의 시슈코프스키 식을 넣으면 다음과 같아요.</p>
+          <div class="eq eq-big" role="math" aria-label="v 나누기 v0는 A 빼기 B 곱하기 자연로그 1 더하기 K c">
+            <span class="frac"><span><var>v</var></span><span><var>v</var><sub>0</sub></span></span> = <var>A</var> − <var>B</var> · ln(1 + <var>K</var>·<var>c</var>)
+          </div>
+          <p>
+            이론대로라면 <var>A</var> = 1, <var>B</var> = <var>RT</var>Γ<sub>∞</sub>/Δγ(0)예요.
+            하지만 실제로는 장뇌 쪽 표면장력도 세제의 영향을 조금 받고, 저항이 속도에 정확히 비례하지 않을 수 있어요.
+            그래서 <b><var>A</var>, <var>B</var>, <var>K</var> 세 값을 모두 표준용액 측정값에 맞춰 정해요.</b>
+            이렇게 실험값으로 식의 계수를 정하는 것을 <b>검량(보정)</b>이라고 하고, 그 결과 그래프가 <b>표준곡선(검량선)</b>이에요.
+          </p>
+          <div class="table-wrap">
+            <table class="th-table">
+              <thead><tr><th>모형</th><th>식</th><th>잘 맞는 범위</th><th>0 mg/L 점</th><th>필요한 농도 수</th></tr></thead>
+              <tbody>
+                <tr><td><b>표면장력 (권장)</b></td><td>A − B·ln(1 + Kc)</td><td>묽은 구간 ~ 중간 구간 전체</td><td>사용</td><td>3개 이상</td></tr>
+                <tr><td>선형</td><td>a + b·c</td><td>묽은 구간만 (<var>Kc</var> ≪ 1)</td><td>사용</td><td>2개 이상</td></tr>
+                <tr><td>로그 농도</td><td>a + b·log<sub>10</sub>c</td><td>중간 구간만 (<var>Kc</var> ≫ 1)</td><td>못 씀 (log 0 없음)</td><td>2개 이상</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>계수는 어떻게 정할까?</h4>
+          <p>
+            <var>K</var>를 하나 정하면 <var>X</var> = ln(1 + <var>Kc</var>)로 바꿔 v/v<sub>0</sub> = <var>A</var> − <var>B</var>·<var>X</var>라는 <b>직선</b>이 돼요.
+            그래서 5절의 최소제곱법으로 <var>A</var>, <var>B</var>를 바로 구할 수 있어요.
+            컴퓨터가 <var>K</var>를 아주 작은 값부터 큰 값까지 바꿔 가며 수백 번 계산하고, 점과 곡선의 차이(잔차 제곱합)가 가장 작은 <var>K</var>를 골라요.
+          </p>
+          <h4>내 표준곡선이 맞는지 확인하는 법</h4>
+          <ol class="th-steps">
+            <li><b>R<sup>2</sup></b>가 1에 가까운지 봐요.</li>
+            <li><b>검산</b>을 봐요. 표준용액의 v/v<sub>0</sub>를 곡선으로 다시 농도로 바꿨을 때 실제로 만든 농도와 얼마나 다른지예요. 사이트가 가장 큰 오차를 자동으로 보여 주고, 15%가 넘으면 경고해요.</li>
+            <li>그래프에서 점들이 곡선의 한쪽에만 몰려 있지 않은지(휘어진 모양이 남았는지) 봐요.</li>
+          </ol>
+          <div class="callout warn">
+            <b>R<sup>2</sup>가 높다고 끝이 아니에요.</b> 예를 들어 데모 데이터에 로그 모형을 쓰면 R<sup>2</sup> ≈ 0.98로 높아 보여도, 0.5 mg/L 표준용액을 다시 계산하면 약 20% 틀려요(표면장력 모형은 0.2%). 모형의 모양이 데이터와 맞지 않으면 생기는 <b>계통 오차</b>예요. 검산 오차로 꼭 확인하세요.
+          </div>
+        </article>
+
+        <!-- 9 -->
+        <article class="th" id="th-9">
+          <h3><span class="th-n">9</span>속도로 농도 거꾸로 구하기 (역산)</h3>
+          <p class="key"><b>핵심</b> 시료의 v/v<sub>0</sub>를 재고, 표준곡선 식을 c에 대해 풀어 농도를 구해요. <b>표준용액으로 확인한 농도 범위 안에서만</b> 믿을 수 있어요.</p>
+          <div class="eq-grid">
+            <div class="eq" role="math" aria-label="표면장력 모형 역산: c는 e의 A 빼기 r 나누기 B 제곱 빼기 1, 나누기 K">
+              <span class="eq-cap">표면장력 모형</span>
+              <var>c</var> = <span class="frac"><span><var>e</var><sup>(<var>A</var> − <var>r</var>)/<var>B</var></sup> − 1</span><span><var>K</var></span></span>
+            </div>
+            <div class="eq" role="math" aria-label="선형 모형 역산: c는 r 빼기 a 나누기 b">
+              <span class="eq-cap">선형</span>
+              <var>c</var> = <span class="frac"><span><var>r</var> − <var>a</var></span><span><var>b</var></span></span>
+            </div>
+            <div class="eq" role="math" aria-label="로그 모형 역산: c는 10의 r 빼기 a 나누기 b 제곱">
+              <span class="eq-cap">로그 농도</span>
+              <var>c</var> = 10<sup>(<var>r</var> − <var>a</var>)/<var>b</var></sup>
+            </div>
+          </div>
+          <p class="muted">여기서 <var>r</var> = 시료의 v/v<sub>0</sub>예요.</p>
+          <p>
+            표준용액으로 확인한 농도 사이에서 값을 읽는 것을 <b>내삽</b>, 그 바깥으로 곡선을 늘려 읽는 것을 <b>외삽</b>이라고 해요.
+            외삽한 구간은 곡선의 모양이 실험으로 확인되지 않았으니 결과를 믿기 어려워요. 그래서 사이트는 <b>‘범위 밖’</b> 경고를 띄워요.
+          </p>
+          <ul class="th-list">
+            <li><b>너무 진한 시료</b>: 정제수로 정확히 <var>n</var>배 묽혀서 다시 재고, 나온 농도에 <var>n</var>을 곱하세요.</li>
+            <li><b>너무 묽은 시료</b>: 더 낮은 농도의 표준용액을 추가로 만들어 범위를 넓히세요. 단, 10절의 LOD보다 낮으면 이 방법으로는 구별할 수 없어요.</li>
+          </ul>
+        </article>
+
+        <!-- 10 -->
+        <article class="th" id="th-10">
+          <h3><span class="th-n">10</span>감지한계(LOD)와 정량한계(LOQ)</h3>
+          <p class="key"><b>핵심</b> <b>LOD</b>는 “세제가 <b>있다</b>”고 말할 수 있는 가장 낮은 농도, <b>LOQ</b>는 “<b>얼마나</b> 있다”고 숫자로 말할 수 있는 가장 낮은 농도예요.</p>
+          <p>측정에는 늘 흔들림(잡음)이 있어요. 신호가 잡음보다 충분히 커야 진짜 변화라고 믿을 수 있어요. 두 값이 필요해요.</p>
+          <div class="eq-grid">
+            <div class="eq" role="math" aria-label="시그마0는 루트 시그마 r i 빼기 r평균 제곱 나누기 n 빼기 1">
+              <span class="eq-cap">잡음: σ<sub>0</sub> (정제수 v/v<sub>0</sub>의 표준편차)</span>
+              <var>σ</var><sub>0</sub> = <span class="sqrt">√<span class="rad"><span class="frac"><span>Σ(<var>r</var><sub><var>i</var></sub> − <var>r̄</var>)<sup>2</sup></span><span><var>n</var> − 1</span></span></span></span>
+            </div>
+            <div class="eq" role="math" aria-label="감도 S는 v 나누기 v0의 변화량 나누기 농도 변화량">
+              <span class="eq-cap">감도: S (저농도 직선의 기울기)</span>
+              <var>S</var> = <span class="frac"><span>Δ(<var>v</var>/<var>v</var><sub>0</sub>)</span><span>Δ<var>c</var></span></span> &nbsp;<span class="eq-note">(1 mg/L당 변화량)</span>
+            </div>
+          </div>
+          <div class="eq eq-big" role="math" aria-label="LOD는 3 시그마0 나누기 S의 절댓값, LOQ는 10 시그마0 나누기 S의 절댓값">
+            LOD = <span class="frac"><span>3<var>σ</var><sub>0</sub></span><span>|<var>S</var>|</span></span>
+            &nbsp;&nbsp;&nbsp;
+            LOQ = <span class="frac"><span>10<var>σ</var><sub>0</sub></span><span>|<var>S</var>|</span></span>
+          </div>
+          <ul class="th-list">
+            <li><b>왜 3배, 10배?</b> 신호 변화가 잡음의 3배를 넘으면 우연이 아니라 ‘무언가 있다’고 판단할 수 있고, 10배를 넘으면 그 크기(농도)까지 믿을 만하다는 분석화학의 약속이에요.</li>
+            <li><b>S의 부호</b>: 세제가 많을수록 v/v<sub>0</sub>가 작아지니 S는 음수예요. LOD·LOQ에는 크기 |S|만 써요.</li>
+            <li><b>S 구간</b>: 저농도의 직선 부분으로 정해야 해요(7절 ① 구간). 표면장력 모형에서는 c → 0일 때의 기울기 S ≈ −<var>B</var>·<var>K</var>와 같은 뜻이에요. 4단계에서 구간을 직접 고를 수 있어요.</li>
+          </ul>
+          <div class="callout">
+            <b>계산 예</b> σ<sub>0</sub> = 0.016, S = −0.19 /(mg/L)이면
+            LOD = 3 × 0.016 ÷ 0.19 ≈ <b>0.25 mg/L</b>, LOQ = 10 × 0.016 ÷ 0.19 ≈ <b>0.84 mg/L</b>예요.
+            시료의 추정 농도가 0.25 mg/L보다 낮으면 ‘감지한계 미만’, 0.25~0.84 mg/L이면 ‘정량한계 미만(참고값)’으로 표시돼요.
+          </div>
+          <p>
+            <b>반복 측정의 RSD</b>(상대표준편차) = 표준편차 ÷ 평균 × 100%. 같은 시료를 여러 번 쟀을 때 결과가 얼마나 비슷한지(재현성)를 나타내요. 작을수록 좋아요.
+          </p>
+        </article>
+
+        <!-- 11 -->
+        <article class="th" id="th-11">
+          <h3><span class="th-n">11</span>영상에서 보트 위치를 찾는 원리</h3>
+          <p class="key"><b>핵심</b> 보트가 없는 ‘배경’ 사진을 만들고, 매 프레임에서 배경과 달라진 부분의 <b>무게중심</b>을 보트 위치로 봐요.</p>
+          <ol class="th-steps">
+            <li><b>축척</b>: 자의 두 눈금 사이 화소 수 ÷ 실제 길이(mm) = <b>px/mm</b>. 위치(mm) = 화소 위치 ÷ (px/mm).</li>
+            <li><b>배경 만들기</b>: 영상 전체에서 고르게 뽑은 25장의 같은 자리 밝기 중 <b>중앙값</b>을 써요. 보트는 계속 움직여서 어느 자리에서든 잠깐만 나타나니, 중앙값을 쓰면 보트는 사라지고 물과 수로만 남아요.</li>
+            <li><b>배경 차분</b>: |지금 밝기 − 배경 밝기| ≥ <b>임계값</b>인 화소를 보트 후보로 표시해요(마스크).</li>
+            <li><b>덩어리 고르기</b>: 서로 붙어 있는 후보 화소 중 가장 큰 덩어리를 보트로 보고, 그 무게중심을 위치로 써요.</li>
+            <li><b>시간</b>: 영상 파일에 기록된 각 프레임의 실제 시각을 써요(보통 프레임 번호 ÷ fps).</li>
+          </ol>
+          <p class="muted">임계값이 너무 낮으면 물결까지 보트로 잡히고, 너무 높으면 보트를 놓쳐요. 3단계의 마스크 미리보기에서 주황색이 보트만 덮도록 맞추세요.</p>
+        </article>
+
+        <!-- 12 -->
+        <article class="th" id="th-12">
+          <h3><span class="th-n">12</span>정확하게 재는 실험 요령</h3>
+          <div class="two-col th-cards">
+            <div class="th-card">
+              <b>수면 관리</b>
+              <ul>
+                <li>측정할 때마다 물을 새로 갈고 수로를 헹궈요.</li>
+                <li>손가락으로 물과 보트 바닥을 만지지 않아요 (피부 기름).</li>
+                <li>측정 순서: 정제수 → 묽은 표준용액 → 진한 표준용액 → 시료.</li>
+              </ul>
+            </div>
+            <div class="th-card">
+              <b>조건 맞추기</b>
+              <ul>
+                <li>물 온도와 깊이를 일정하게 해요.</li>
+                <li>같은 보트, 같은 크기의 장뇌 조각을 같은 자리에 붙여요.</li>
+                <li>정제수를 처음·중간·끝에 한 번씩 재면 장뇌가 닳는 영향을 확인할 수 있어요.</li>
+              </ul>
+            </div>
+            <div class="th-card">
+              <b>촬영</b>
+              <ul>
+                <li>카메라를 고정하고 수면을 바로 위에서 찍어요.</li>
+                <li>자를 수면과 같은 높이에 둬요 (높이가 다르면 축척이 틀려요).</li>
+                <li>1080p·30 fps, 10~20초면 충분해요.</li>
+              </ul>
+            </div>
+            <div class="th-card">
+              <b>분석</b>
+              <ul>
+                <li>벽 가까이 간 구간과 출발·멈춤 구간은 쓰지 않아요.</li>
+                <li>같은 시료는 3번 이상 재서 평균과 RSD를 봐요.</li>
+                <li>표준곡선의 검산 오차와 ‘범위 밖’ 경고를 꼭 확인해요.</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+
+        <div class="callout th-truth">
+          <b>이 사이트의 식들은 얼마나 믿을 만할까?</b>
+          <ul class="th-list">
+            <li><b>정확한 수학</b>: 최소제곱법, R<sup>2</sup>, 표준편차, LOD = 3σ<sub>0</sub>/|S|, LOQ = 10σ<sub>0</sub>/|S|. 손으로 푼 값과 같게 나오는지 자동 테스트로 확인했어요.</li>
+            <li><b>근사(어림) 모형</b>: 추진력 F ≈ w·Δγ, 저항 ∝ v, 시슈코프스키 식. 실제 현상을 단순하게 나타낸 것이라, 표준곡선의 계수(A, B, K)는 반드시 <b>내 실험의 표준용액으로</b> 정해야 해요.</li>
+            <li><b>데모 데이터</b>: 7절의 식으로 만든 가상 값이에요. 실제 실험값이 아니에요.</li>
+          </ul>
+        </div>
+
+        </div>
+        </div>
+
+        <div class="next-row"><button class="btn btn-primary btn-next" data-goto="1">이해했어요 → 1단계 영상 불러오기</button></div>
+      </section>
+
+      <!-- ───────────── 1단계 ───────────── -->
+      <section id="step1" class="step" data-step="1" hidden>
+        <p class="eyebrow">1단계 / 4</p>
+        <h2>영상 불러오기</h2>
+        <ol class="guide">
+          <li>아래 버튼을 눌러 촬영한 영상(mp4, mov)을 고르세요.</li>
+          <li>◀ ▶ 버튼이나 키보드 좌우 방향키로 한 프레임씩 넘겨 볼 수 있어요.</li>
+          <li>초당 프레임 수(fps)가 맞는지 확인하고 <b>다음 단계</b>를 누르세요.</li>
+        </ol>
+        <label class="btn btn-primary file-btn">
+          영상 파일 고르기
+          <input id="fileInput" type="file" accept="video/mp4,video/quicktime,.mp4,.mov,.m4v,video/*" />
+        </label>
+        <p id="fileName" class="muted"></p>
+        <div id="msg1" class="msg" role="alert" hidden></div>
+
+        <div id="player1" class="panel" hidden>
+          <div class="canvas-box"><canvas id="view1"></canvas></div>
+          <div class="frame-bar">
+            <button id="prev1" class="btn btn-icon" aria-label="이전 프레임">◀</button>
+            <button id="play1" class="btn btn-icon" aria-label="재생">재생</button>
+            <button id="next1" class="btn btn-icon" aria-label="다음 프레임">▶</button>
+            <input id="seek1" type="range" min="0" max="0" value="0" aria-label="프레임 위치" />
+          </div>
+          <p id="frameInfo1" class="mono"></p>
+          <div class="field-row">
+            <label for="fpsInput">초당 프레임 수 (fps)</label>
+            <input id="fpsInput" type="number" min="1" max="1000" step="0.001" inputmode="decimal" />
+            <span id="fpsNote" class="muted"></span>
+          </div>
+        </div>
+        <div class="next-row"><button class="btn btn-primary btn-next" data-goto="2">다음 단계 → 축척 설정</button></div>
+      </section>
+
+      <!-- ───────────── 2단계 ───────────── -->
+      <section id="step2" class="step" data-step="2" hidden>
+        <p class="eyebrow">2단계 / 4</p>
+        <h2>축척과 수로 영역 정하기</h2>
+        <ol class="guide">
+          <li><b>눈금 두 점 찍기</b>를 누르고, 영상 속 자 위의 두 눈금을 차례로 누르세요. (누르고 있으면 확대경이 나와요)</li>
+          <li>두 점 사이의 실제 길이(mm)를 입력하세요. 예: 0 mm와 200 mm 눈금 → 200</li>
+          <li><b>수로 영역 그리기</b>를 누르고, 보트가 지나가는 물길을 대각선으로 끌어서 사각형으로 감싸세요.</li>
+        </ol>
+        <div id="msg2" class="msg" role="alert" hidden></div>
+        <div class="tool-row">
+          <button id="modeRuler" class="btn btn-toggle" aria-pressed="false">눈금 두 점 찍기</button>
+          <button id="modeRoi" class="btn btn-toggle" aria-pressed="false">수로 영역 그리기</button>
+        </div>
+        <div class="canvas-box"><canvas id="view2" class="drawable"></canvas></div>
+        <div class="frame-bar">
+          <button id="prev2" class="btn btn-icon" aria-label="이전 프레임">◀</button>
+          <button id="next2" class="btn btn-icon" aria-label="다음 프레임">▶</button>
+          <input id="seek2" type="range" min="0" max="0" value="0" aria-label="프레임 위치" />
+        </div>
+        <div class="field-row">
+          <label for="mmInput">두 점 사이 실제 길이 (mm)</label>
+          <input id="mmInput" type="number" min="0.1" step="0.1" inputmode="decimal" placeholder="예: 200" />
+        </div>
+        <div class="result-grid">
+          <div class="stat"><span class="k">두 점 거리</span><span id="pxDist" class="v">—</span></div>
+          <div class="stat"><span class="k">축척</span><span id="pxPerMm" class="v">—</span></div>
+          <div class="stat"><span class="k">수로 영역</span><span id="roiInfo" class="v">—</span></div>
+        </div>
+        <div class="next-row">
+          <button class="btn btn-ghost" data-goto="1">← 이전</button>
+          <button class="btn btn-primary btn-next" data-goto="3">다음 단계 → 보트 추적</button>
+        </div>
+      </section>
+
+      <!-- ───────────── 3단계 ───────────── -->
+      <section id="step3" class="step" data-step="3" hidden>
+        <p class="eyebrow">3단계 / 4</p>
+        <h2>보트 추적</h2>
+        <ol class="guide">
+          <li><b>자동 추적 시작</b>을 누르면 프레임마다 보트 위치를 찾아요.</li>
+          <li>마스크 미리보기에서 <span class="swatch sw-blob"></span>주황색이 보트만 덮도록 <b>임계값</b>을 조절하세요.</li>
+          <li>틀린 프레임은 <b>직접 찍기</b>를 켜고 영상 위 보트 중심을 누르면 고쳐져요. 그래프의 점을 누르면 그 프레임으로 이동해요.</li>
+        </ol>
+        <div id="msg3" class="msg" role="alert" hidden></div>
+        <div class="tool-row">
+          <button id="btnTrack" class="btn btn-primary">자동 추적 시작</button>
+          <label class="inline">
+            <span>분석 방식</span>
+            <select id="grabMode">
+              <option value="auto">자동 (권장, 빠름)</option>
+              <option value="seek">호환 모드 (느림)</option>
+            </select>
+          </label>
+        </div>
+        <div id="progress3" class="progress" hidden><div class="bar"></div><span class="ptext"></span></div>
+
+        <div id="trackPanel" class="panel" hidden>
+          <div class="slider-row">
+            <label for="thr">임계값 (밝기 차이) <b id="thrVal">30</b></label>
+            <input id="thr" type="range" min="4" max="120" value="30" />
+            <button id="thrAuto" class="btn btn-small">자동 추천</button>
+          </div>
+          <div class="slider-row">
+            <label for="minArea">최소 크기 (화소) <b id="minAreaVal">6</b></label>
+            <input id="minArea" type="range" min="1" max="200" value="6" />
+          </div>
+          <div class="two-col">
+            <figure>
+              <figcaption>영상 (● 자동 추적, ▲ 직접 찍은 점)</figcaption>
+              <div class="canvas-box"><canvas id="view3"></canvas></div>
+            </figure>
+            <figure>
+              <figcaption>마스크 미리보기 (<span class="swatch sw-mask"></span>임계값 넘음, <span class="swatch sw-blob"></span>보트로 고른 덩어리)</figcaption>
+              <div class="canvas-box"><canvas id="mask3"></canvas></div>
+            </figure>
+          </div>
+          <div class="frame-bar">
+            <button id="prev3" class="btn btn-icon" aria-label="이전 프레임">◀</button>
+            <button id="next3" class="btn btn-icon" aria-label="다음 프레임">▶</button>
+            <input id="seek3" type="range" min="0" max="0" value="0" aria-label="분석 프레임" />
+          </div>
+          <p id="sampleInfo" class="mono"></p>
+          <div class="tool-row">
+            <button id="btnManual" class="btn btn-toggle" aria-pressed="false">직접 찍기</button>
+            <label class="inline check"><input id="autoNext" type="checkbox" checked /> 찍은 뒤 다음 프레임으로</label>
+            <button id="btnUndoManual" class="btn btn-small">이 프레임 자동값으로</button>
+            <button id="btnExclude" class="btn btn-small">이 프레임 제외</button>
+          </div>
+          <p id="trackSummary" class="summary"></p>
+          <h3>시간–위치 그래프</h3>
+          <div class="chart-box"><canvas id="chart3"></canvas></div>
+          <div class="tool-row">
+            <button id="btnCsv3" class="btn btn-outline">시간–위치 CSV 내려받기</button>
+          </div>
+        </div>
+        <div class="next-row">
+          <button class="btn btn-ghost" data-goto="2">← 이전</button>
+          <button class="btn btn-primary btn-next" data-goto="4">다음 단계 → 속도·농도 계산</button>
+        </div>
+      </section>
+
+      <!-- ───────────── 4단계 ───────────── -->
+      <section id="step4" class="step" data-step="4" hidden>
+        <p class="eyebrow">4단계 / 4</p>
+        <h2>속도와 농도 계산</h2>
+        <div id="msg4" class="msg" role="alert" hidden></div>
+
+        <div class="card">
+          <h3>이번 영상의 속도</h3>
+          <p class="muted small">0.5초 창으로 직선을 맞춰 보고, 기울기 변화가 ±10% 이내이며 R² ≥ 0.98인 가장 긴 구간을 등속 구간으로 골라요.</p>
+          <div id="cvResult" class="callout"></div>
+          <div class="chart-box"><canvas id="chart4"></canvas></div>
+          <details id="manualBox">
+            <summary>구간 직접 고르기</summary>
+            <p class="muted small">그래프를 두 번 누르면 시작·끝이 정해져요. 숫자로 입력해도 돼요.</p>
+            <div class="field-row">
+              <label for="segStart">시작 (s)</label><input id="segStart" type="number" step="0.01" inputmode="decimal" />
+              <label for="segEnd">끝 (s)</label><input id="segEnd" type="number" step="0.01" inputmode="decimal" />
+            </div>
+            <div class="tool-row">
+              <button id="btnSegApply" class="btn btn-small">이 구간 쓰기</button>
+              <button id="btnSegAuto" class="btn btn-small">자동 탐지로 되돌리기</button>
+            </div>
+          </details>
+
+          <h4>측정 기록에 저장</h4>
+          <div class="form-grid">
+            <label>시료 이름<input id="recName" type="text" placeholder="예: 하천수 A" /></label>
+            <label>종류
+              <select id="recKind">
+                <option value="blank">정제수 (0 mg/L, 기준)</option>
+                <option value="sample" selected>시료 (농도 모름)</option>
+                <option value="standard">표준용액 (농도 앎)</option>
+              </select>
+            </label>
+            <label id="recConcWrap" hidden>농도 (mg/L)<input id="recConc" type="number" min="0" step="0.01" inputmode="decimal" /></label>
+            <label>속도 v (mm/s)<input id="recV" type="number" min="0" step="0.01" inputmode="decimal" /></label>
+          </div>
+          <p class="muted small">속도는 위에서 구한 값이 자동으로 들어가요. 다른 방법으로 잰 속도를 직접 써도 돼요.</p>
+          <button id="btnSave" class="btn btn-primary">기록에 저장</button>
+        </div>
+
+        <div class="card">
+          <h3>기준 속도 v<sub>0</sub> (정제수)</h3>
+          <div id="v0Box"></div>
+        </div>
+
+        <div class="card">
+          <h3>표준곡선</h3>
+          <div class="tool-row">
+            <label class="inline"><span>곡선 모양</span>
+              <select id="curveModel">
+                <option value="szyszkowski">표면장력 모형 (권장): v/v₀ = A − B·ln(1 + K·c)</option>
+                <option value="linear">선형 (저농도용): v/v₀ = a + b·c</option>
+                <option value="log">로그 농도 (중·고농도용): v/v₀ = a + b·log₁₀c</option>
+              </select>
+            </label>
+            <label class="inline check"><input id="logAxis" type="checkbox" /> 가로축을 로그 눈금으로 보기</label>
+          </div>
+          <div id="curveInfo" class="callout"></div>
+          <div class="chart-box"><canvas id="chart5"></canvas></div>
+          <h4>표준곡선 점</h4>
+          <div class="form-grid">
+            <label>농도 (mg/L)<input id="stdC" type="number" min="0" step="0.01" inputmode="decimal" /></label>
+            <label>v/v₀<input id="stdR" type="number" min="0" step="0.001" inputmode="decimal" /></label>
+          </div>
+          <div class="tool-row">
+            <button id="btnStdAdd" class="btn btn-small">점 추가</button>
+            <label class="btn btn-small file-btn">CSV 올리기<input id="stdFile" type="file" accept=".csv,text/csv,.txt" /></label>
+            <button id="btnStdCsv" class="btn btn-small">CSV 내려받기</button>
+            <button id="btnStdClear" class="btn btn-small">직접 입력한 점 모두 지우기</button>
+          </div>
+          <p class="muted small">모형이 왜 이렇게 생겼는지는 맨 앞 ‘이론’ 7~8절에 있어요. CSV 형식: 첫째 열 농도(mg/L), 둘째 열 v/v₀. 첫 줄이 제목이어도 괜찮아요. 측정 기록의 ‘표준용액’도 자동으로 들어가요.</p>
+          <div class="table-wrap scroll"><table id="stdTable"></table></div>
+
+          <h4>감지한계(LOD)·정량한계(LOQ)</h4>
+          <p class="muted small">LOD = 3σ<sub>0</sub>/S, LOQ = 10σ<sub>0</sub>/S. σ<sub>0</sub>: 0 mg/L 반복 측정 v/v<sub>0</sub>의 표준편차, S: 저농도 직선의 기울기(1 mg/L당 v/v<sub>0</sub> 변화량, 크기만 사용).</p>
+          <div class="field-row">
+            <label for="sLo">S 구간 농도</label>
+            <select id="sLo"></select><span>~</span><select id="sHi"></select><span>mg/L</span>
+          </div>
+          <div id="lodBox" class="result-grid"></div>
+        </div>
+
+        <div class="card">
+          <h3>측정 기록</h3>
+          <div class="table-wrap"><table id="recTable"></table></div>
+          <h4>시료별 반복 측정 요약</h4>
+          <div class="table-wrap"><table id="sumTable"></table></div>
+          <div class="tool-row">
+            <button id="btnRecCsv" class="btn btn-outline">측정 기록 CSV 내려받기</button>
+            <button id="btnRecClear" class="btn btn-small btn-danger">기록 모두 지우기</button>
+          </div>
+        </div>
+        <div class="next-row"><button class="btn btn-ghost" data-goto="3">← 이전</button></div>
+      </section>
+    </main>
+    <footer class="wrap foot">모든 계산은 이 브라우저 안에서만 이뤄져요. 측정 기록은 이 브라우저에 저장돼요.</footer>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>
