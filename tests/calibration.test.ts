@@ -80,3 +80,48 @@ describe('감도 S, LOD, LOQ', () => {
     expect(blankStats([24, 25])).toBeNull();
   });
 });
+
+describe('표준곡선 – 표면장력(시슈코프스키) 모형 v/v0 = a + b·ln(1 + k·c)', () => {
+  const concs = [0, 0, 0, 0.5, 0.5, 1, 1, 2, 2, 5, 5, 10, 10];
+  const model = (c: number) => 1 - 0.3 * Math.log1p(0.9 * c);
+
+  it('정확한 데이터에서 a, b, k 를 되찾음 (0 mg/L 점도 사용)', () => {
+    const f = fitStandardCurve(concs.map((c) => ({ conc: c, ratio: model(c) })), 'szyszkowski')!;
+    expect(f.a).toBeCloseTo(1, 4);
+    expect(f.b).toBeCloseTo(-0.3, 4);
+    expect(f.k!).toBeCloseTo(0.9, 3);
+    expect(f.r2).toBeCloseTo(1, 8);
+    expect(f.n).toBe(13);
+    expect(f.cMin).toBe(0);
+    expect(predictRatio(f, 3)).toBeCloseTo(model(3), 6);
+    const inv = inverseConcentration(f, model(3));
+    expect(inv.conc!).toBeCloseTo(3, 4);
+    expect(inv.inRange).toBe(true);
+    expect(inverseConcentration(f, model(15)).side).toBe('above');
+  });
+
+  it('곡선 데이터(v/v0 = 1/(1+c/4))에서 선형·로그 모형보다 역산 오차가 훨씬 작음', () => {
+    const truth = (c: number) => 1 / (1 + c / 4);
+    const pts = concs.map((c) => ({ conc: c, ratio: truth(c) }));
+    const maxErr = (m: 'linear' | 'log' | 'szyszkowski') => {
+      const f = fitStandardCurve(pts, m)!;
+      return Math.max(...[0.5, 1, 2, 5, 10].map((c) => Math.abs(inverseConcentration(f, truth(c)).conc! / c - 1)));
+    };
+    const sz = maxErr('szyszkowski');
+    expect(sz).toBeLessThan(0.1);
+    expect(sz).toBeLessThan(maxErr('log') / 2);
+    expect(sz).toBeLessThan(maxErr('linear') / 2);
+  });
+
+  it('노이즈가 있어도 역산 농도가 ±10% 안 (중간 농도)', () => {
+    let seed = 7;
+    const r = () => ((seed = (seed * 16807) % 2147483647) / 2147483647 - 0.5) * 0.02; // ±1%
+    const pts = concs.map((c) => ({ conc: c, ratio: model(c) * (1 + r()) }));
+    const f = fitStandardCurve(pts, 'szyszkowski')!;
+    for (const c of [1, 2, 5]) expect(Math.abs(inverseConcentration(f, model(c)).conc! / c - 1)).toBeLessThan(0.1);
+  });
+
+  it('서로 다른 농도가 3개 미만이면 null', () => {
+    expect(fitStandardCurve([{ conc: 0, ratio: 1 }, { conc: 1, ratio: 0.8 }, { conc: 1, ratio: 0.81 }], 'szyszkowski')).toBeNull();
+  });
+});

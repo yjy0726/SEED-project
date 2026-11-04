@@ -8,15 +8,20 @@ export interface StdPoint {
 }
 
 /**
- * linear: v/v0 = a + b·c
- * log   : v/v0 = a + b·log10(c)   (c > 0 인 점만 사용)
+ * linear      : v/v0 = a + b·c                  (저농도에서만 맞음)
+ * log         : v/v0 = a + b·log10(c)           (c > 0 인 점만, 중간~고농도에서 맞음)
+ * szyszkowski : v/v0 = a + b·ln(1 + k·c)        (표면장력 이론 모형, b < 0 이면 B = −b)
+ *   시슈코프스키 식 γ(c) = γ0 − RTΓ∞·ln(1 + K·c) 에서 나온 모양.
+ *   k·c ≪ 1 이면 직선, k·c ≫ 1 이면 log c 에 직선 → 두 모형을 하나로 이음.
  */
-export type CurveModel = 'linear' | 'log';
+export type CurveModel = 'linear' | 'log' | 'szyszkowski';
 
 export interface CurveFit {
   model: CurveModel;
   a: number;
   b: number;
+  /** szyszkowski 모형의 K (L/mg) */
+  k?: number;
   r2: number;
   n: number;
   /** 회귀에 쓴 농도 범위 */
@@ -25,6 +30,7 @@ export interface CurveFit {
 }
 
 export function fitStandardCurve(points: readonly StdPoint[], model: CurveModel): CurveFit | null {
+  if (model === 'szyszkowski') return fitSzyszkowski(points);
   const used = points.filter(
     (p) => isFinite(p.conc) && isFinite(p.ratio) && (model === 'linear' ? p.conc >= 0 : p.conc > 0),
   );
@@ -45,7 +51,76 @@ export function fitStandardCurve(points: readonly StdPoint[], model: CurveModel)
   };
 }
 
+/**
+ * v/v0 = a + b·ln(1 + k·c) 맞추기.
+ * k 를 하나 정하면 x = ln(1 + k·c) 에 대한 직선 회귀가 되므로,
+ * k 를 넓게 훑은 뒤(로그 간격) 황금분할 탐색으로 잔차제곱합이 가장 작은 k 를 찾는다.
+ * 서로 다른 농도가 3개 이상 필요 (모수 3개).
+ */
+export function fitSzyszkowski(points: readonly StdPoint[]): CurveFit | null {
+  const used = points.filter((p) => isFinite(p.conc) && isFinite(p.ratio) && p.conc >= 0);
+  if (new Set(used.map((p) => p.conc)).size < 3) return null;
+  const pos = used.filter((p) => p.conc > 0).map((p) => p.conc);
+  const cMax = Math.max(...pos);
+  const cMinPos = Math.min(...pos);
+  const ys = used.map((p) => p.ratio);
+  const fitAt = (lnK: number) => {
+    const k = Math.exp(lnK);
+    return linearRegression(used.map((p) => Math.log1p(k * p.conc)), ys);
+  };
+  const score = (lnK: number) => fitAt(lnK)?.r2 ?? -Infinity;
+  const lo = Math.log(1e-3 / cMax);
+  const hi = Math.log(1e3 / cMinPos);
+  const N = 160;
+  let bi = 0;
+  let best = -Infinity;
+  for (let i = 0; i <= N; i++) {
+    const v = score(lo + ((hi - lo) * i) / N);
+    if (v > best) {
+      best = v;
+      bi = i;
+    }
+  }
+  // 황금분할 탐색으로 다듬기
+  let a = lo + ((hi - lo) * Math.max(0, bi - 1)) / N;
+  let b = lo + ((hi - lo) * Math.min(N, bi + 1)) / N;
+  const g = (Math.sqrt(5) - 1) / 2;
+  let x1 = b - g * (b - a);
+  let x2 = a + g * (b - a);
+  let f1 = score(x1);
+  let f2 = score(x2);
+  for (let it = 0; it < 60; it++) {
+    if (f1 > f2) {
+      b = x2;
+      x2 = x1;
+      f2 = f1;
+      x1 = b - g * (b - a);
+      f1 = score(x1);
+    } else {
+      a = x1;
+      x1 = x2;
+      f1 = f2;
+      x2 = a + g * (b - a);
+      f2 = score(x2);
+    }
+  }
+  const lnK = (a + b) / 2;
+  const fit = fitAt(lnK);
+  if (!fit || fit.slope === 0) return null;
+  return {
+    model: 'szyszkowski',
+    a: fit.intercept,
+    b: fit.slope,
+    k: Math.exp(lnK),
+    r2: fit.r2,
+    n: fit.n,
+    cMin: Math.min(...used.map((p) => p.conc)),
+    cMax,
+  };
+}
+
 export function predictRatio(fit: CurveFit, conc: number): number {
+  if (fit.model === 'szyszkowski') return conc >= 0 ? fit.a + fit.b * Math.log1p((fit.k ?? 0) * conc) : NaN;
   if (fit.model === 'log') return conc > 0 ? fit.a + fit.b * Math.log10(conc) : NaN;
   return fit.a + fit.b * conc;
 }
@@ -62,9 +137,10 @@ export interface InverseResult {
 export function inverseConcentration(fit: CurveFit, ratio: number): InverseResult {
   if (!isFinite(ratio)) return { conc: null, inRange: false, side: null };
   const u = (ratio - fit.a) / fit.b;
-  const conc = fit.model === 'log' ? Math.pow(10, u) : u;
+  const conc = fit.model === 'log' ? Math.pow(10, u) : fit.model === 'szyszkowski' ? Math.expm1(u) / (fit.k ?? NaN) : u;
   if (!isFinite(conc)) return { conc: null, inRange: false, side: null };
-  const tol = 1e-9 * Math.max(1, fit.cMax);
+  // 경계에 있는 표준용액이 반올림 오차로 '범위 밖'이 되지 않도록 범위의 2%까지는 안으로 봄
+  const tol = 0.02 * Math.max(fit.cMax - fit.cMin, 1e-9);
   if (conc < fit.cMin - tol) return { conc, inRange: false, side: 'below' };
   if (conc > fit.cMax + tol) return { conc, inRange: false, side: 'above' };
   return { conc, inRange: true, side: null };

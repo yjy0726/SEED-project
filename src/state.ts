@@ -50,6 +50,8 @@ export interface Persisted {
   records: RecordItem[];
   stdPoints: StdPoint[];
   curveModel: CurveModel;
+  /** 표준곡선 그래프 가로축 로그 눈금 */
+  logAxis?: boolean;
   sRange: [number, number] | null;
 }
 
@@ -69,7 +71,8 @@ export const state = {
   data: {
     records: [],
     stdPoints: [],
-    curveModel: 'log',
+    curveModel: 'szyszkowski',
+    logAxis: false,
     sRange: null,
   } as Persisted,
 };
@@ -114,7 +117,8 @@ export function loadPersisted() {
     const d = JSON.parse(raw) as Partial<Persisted>;
     if (Array.isArray(d.records)) state.data.records = d.records;
     if (Array.isArray(d.stdPoints)) state.data.stdPoints = d.stdPoints;
-    if (d.curveModel === 'linear' || d.curveModel === 'log') state.data.curveModel = d.curveModel;
+    if (d.curveModel === 'linear' || d.curveModel === 'log' || d.curveModel === 'szyszkowski') state.data.curveModel = d.curveModel;
+    if (typeof d.logAxis === 'boolean') state.data.logAxis = d.logAxis;
     if (Array.isArray(d.sRange) && d.sRange.length === 2) state.data.sRange = d.sRange;
   } catch {
     /* 저장소를 못 쓰는 환경이면 무시 */

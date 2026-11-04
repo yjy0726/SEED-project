@@ -132,6 +132,13 @@ export function initStep4() {
     savePersisted();
     renderData();
   });
+  const logAxis = $<HTMLInputElement>('logAxis');
+  logAxis.checked = !!state.data.logAxis;
+  logAxis.addEventListener('change', () => {
+    state.data.logAxis = logAxis.checked;
+    savePersisted();
+    renderData();
+  });
 
   $('btnStdAdd').addEventListener('click', () => {
     const c = parseNum($<HTMLInputElement>('stdC'));
@@ -387,8 +394,29 @@ function renderV0(dv: Derived) {
 
 function curveEquation(f: CurveFit): string {
   const sign = f.b < 0 ? '−' : '+';
+  if (f.model === 'szyszkowski')
+    return `v/v<sub>0</sub> = ${f.a.toFixed(4)} ${sign} ${Math.abs(f.b).toFixed(4)}·ln(1 + ${(f.k ?? NaN).toPrecision(3)}·c) <span class="small">(A = ${f.a.toFixed(3)}, B = ${(-f.b).toFixed(3)}, K = ${(f.k ?? NaN).toPrecision(3)} L/mg)</span>`;
   const x = f.model === 'log' ? 'log<sub>10</sub>c' : 'c';
   return `v/v<sub>0</sub> = ${f.a.toFixed(4)} ${sign} ${Math.abs(f.b).toFixed(4)}·${x}`;
+}
+
+/** 검산: 각 표준용액의 평균 v/v0 를 다시 농도로 바꿔 실제 농도와 비교 */
+function backCheck(dv: Derived): { worst: number; at: number } | null {
+  if (!dv.fit) return null;
+  const byC = new Map<number, number[]>();
+  for (const p of dv.stdAll) if (p.conc > 0) byC.set(p.conc, [...(byC.get(p.conc) ?? []), p.ratio]);
+  let worst = 0;
+  let at = NaN;
+  for (const [c, rs] of byC) {
+    const e = inverseConcentration(dv.fit, mean(rs)).conc;
+    if (e === null) continue;
+    const err = Math.abs(e / c - 1);
+    if (err > worst) {
+      worst = err;
+      at = c;
+    }
+  }
+  return isFinite(at) ? { worst, at } : null;
 }
 
 function renderCurve(dv: Derived) {
@@ -396,16 +424,26 @@ function renderCurve(dv: Derived) {
   info.className = 'callout';
   const model = state.data.curveModel;
   $<HTMLSelectElement>('curveModel').value = model;
+  $<HTMLInputElement>('logAxis').checked = !!state.data.logAxis;
   if (!dv.fit) {
     info.className = 'callout warn';
     info.innerHTML =
       model === 'log'
         ? '표준곡선을 그리려면 농도가 0보다 큰 서로 다른 점이 2개 이상 필요해요. (로그 농도에서는 0 mg/L 점을 쓸 수 없어요)'
-        : '표준곡선을 그리려면 서로 다른 농도의 점이 2개 이상 필요해요.';
+        : model === 'szyszkowski'
+          ? '표면장력 모형은 A, B, K 세 값을 정해야 해서 서로 다른 농도가 3개 이상(0 mg/L 포함) 필요해요.'
+          : '표준곡선을 그리려면 서로 다른 농도의 점이 2개 이상 필요해요.';
   } else {
     const f = dv.fit;
+    const chk = backCheck(dv);
+    const chkText = chk
+      ? `<br>검산: 표준용액 농도를 이 식으로 다시 구하면 오차가 가장 큰 곳은 ${fmtConc(chk.at)} mg/L에서 ${(chk.worst * 100).toFixed(1)}%예요.` +
+        (chk.worst > 0.15 ? ' <b>오차가 15%보다 커요. 다른 곡선 모양을 골라 보세요.</b>' : '')
+      : '';
+    if (chk && chk.worst > 0.15) info.className = 'callout warn';
     info.innerHTML = `${curveEquation(f)} · R² = ${f.r2.toFixed(4)} · 점 ${f.n}개 · 범위 ${fmtConc(f.cMin)} ~ ${fmtConc(f.cMax)} mg/L` +
-      (model === 'log' && dv.stdAll.some((p) => p.conc === 0) ? '<br><span class="small">로그 농도에서는 0 mg/L 점이 곡선 맞춤과 그래프에서 빠져요.</span>' : '');
+      chkText +
+      (model === 'log' && dv.stdAll.some((p) => p.conc === 0) ? '<br><span class="small">로그 농도에서는 0 mg/L 점이 곡선 맞춤에서 빠져요.</span>' : '');
   }
 
   // 표준곡선 점 표
@@ -422,12 +460,13 @@ function renderCurve(dv: Derived) {
   }</tbody>`;
 
   // 그래프
-  const isLog = model === 'log';
+  const isLog = !!state.data.logAxis;
   const shown = dv.stdAll.filter((p) => !isLog || p.conc > 0);
   const curve: { x: number; y: number }[] = [];
   if (dv.fit) {
     const f = dv.fit;
-    const lo = isLog ? f.cMin : Math.max(0, f.cMin);
+    const minPos = Math.min(...dv.stdAll.filter((p) => p.conc > 0).map((p) => p.conc));
+    const lo = isLog ? (f.cMin > 0 ? f.cMin : minPos) : Math.max(0, f.cMin);
     for (let i = 0; i <= 60; i++) {
       const c = isLog ? lo * Math.pow(f.cMax / lo, i / 60) : lo + ((f.cMax - lo) * i) / 60;
       curve.push({ x: c, y: predictRatio(f, c) });

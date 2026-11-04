@@ -4,8 +4,9 @@ import { setSource } from './ui/step1';
 import { $, askConfirm } from './ui/dom';
 
 /**
- * 데모 측정 기록 (가상 데이터).
- * 가정한 관계: v/v0 ≈ 1 / (1 + c/4)  (c: LAS 농도 mg/L), 정제수 v0 ≈ 25 mm/s, 측정 오차 약 ±1.5%
+ * 데모 측정 기록 (가상 데이터, 실제 실험값 아님).
+ * 이론 7절의 표면장력 모형 v/v0 = 1 − 0.30·ln(1 + 0.9·c) (c: LAS 농도 mg/L)에
+ * 정제수 v0 ≈ 25 mm/s 와 약 ±1.5% 측정 오차를 더해 만들었다.
  */
 const DEMO_RECORDS: [string, RecordKind, number | undefined, number][] = [
   ['정제수', 'blank', undefined, 25.02],
@@ -13,14 +14,14 @@ const DEMO_RECORDS: [string, RecordKind, number | undefined, number][] = [
   ['정제수', 'blank', undefined, 25.43],
   ['LAS 0.5 mg/L', 'standard', 0.5, 22.4],
   ['LAS 0.5 mg/L', 'standard', 0.5, 22.0],
-  ['LAS 1 mg/L', 'standard', 1, 20.2],
-  ['LAS 1 mg/L', 'standard', 1, 19.7],
-  ['LAS 2 mg/L', 'standard', 2, 16.9],
-  ['LAS 2 mg/L', 'standard', 2, 16.4],
-  ['LAS 5 mg/L', 'standard', 5, 11.3],
-  ['LAS 5 mg/L', 'standard', 5, 10.9],
-  ['LAS 10 mg/L', 'standard', 10, 7.3],
-  ['LAS 10 mg/L', 'standard', 10, 7.0],
+  ['LAS 1 mg/L', 'standard', 1, 20.4],
+  ['LAS 1 mg/L', 'standard', 1, 19.9],
+  ['LAS 2 mg/L', 'standard', 2, 17.5],
+  ['LAS 2 mg/L', 'standard', 2, 17.0],
+  ['LAS 5 mg/L', 'standard', 5, 12.4],
+  ['LAS 5 mg/L', 'standard', 5, 12.0],
+  ['LAS 10 mg/L', 'standard', 10, 7.9],
+  ['LAS 10 mg/L', 'standard', 10, 7.6],
   ['하천수 A', 'sample', undefined, 18.1],
   ['하천수 A', 'sample', undefined, 18.7],
   ['생활하수 B', 'sample', undefined, 9.6],
@@ -54,8 +55,9 @@ export async function loadDemo() {
       ([name, kind, conc, v], i): RecordItem => ({ id: newId(), name, kind, v, createdAt: now - (DEMO_RECORDS.length - i) * 60000, ...(conc !== undefined ? { conc } : {}) }),
     );
     state.data.stdPoints = [];
-    state.data.curveModel = 'log';
-    state.data.sRange = [0, 2];
+    state.data.curveModel = 'szyszkowski';
+    state.data.logAxis = false;
+    state.data.sRange = [0, 1];
     savePersisted();
   }
 }

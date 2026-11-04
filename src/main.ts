@@ -7,7 +7,7 @@ import { initStep3, renderStep3, stepSample } from './ui/step3';
 import { initStep4, renderStep4 } from './ui/step4';
 import { loadDemo } from './demo';
 
-let current = 1;
+let current = 0;
 
 /** 그 단계로 가도 되는지 검사. 안 되면 쉬운 말로 이유를 돌려줌 */
 function blocker(step: number): { msg: string; back: number } | null {
@@ -48,6 +48,7 @@ function showStep(step: number) {
     t.classList.toggle('done', n < step || (n !== step && !blocker(n + 1) && n < 4));
   });
   for (let i = 1; i <= 4; i++) hideMsg($(`msg${i}`));
+  if (step === 0 && location.hash.startsWith('#th-')) return;
   if (step === 1) renderStep1();
   if (step === 2) renderStep2();
   if (step === 3) renderStep3();
@@ -67,6 +68,15 @@ function init() {
   );
   document.querySelectorAll<HTMLButtonElement>('[data-goto]').forEach((b) =>
     b.addEventListener('click', () => goStep(Number(b.dataset.goto))),
+  );
+  // 이론 목차: 해당 절로 부드럽게 이동
+  document.querySelectorAll<HTMLAnchorElement>('.th-toc a').forEach((a) =>
+    a.addEventListener('click', (e) => {
+      const el = document.querySelector(a.getAttribute('href') ?? '');
+      if (!el) return;
+      e.preventDefault();
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }),
   );
   $('btnDemo').addEventListener('click', async () => {
     await loadDemo();
@@ -95,7 +105,7 @@ function init() {
     resizeTimer = window.setTimeout(() => showStepRender(), 150);
   });
 
-  showStep(1);
+  showStep(0);
 }
 
 function showStepRender() {
